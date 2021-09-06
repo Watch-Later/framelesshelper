@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include "customwindow_global.h"
+
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
 namespace Core

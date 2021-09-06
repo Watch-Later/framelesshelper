@@ -37,7 +37,6 @@
 #else
 #include <QtGui/qpa/qplatformwindow_p.h>
 #endif
-#include "core_windows.h"
 
 Q_DECLARE_METATYPE(QMargins)
 
@@ -99,7 +98,7 @@ bool Utils::isWin10OrGreater()
     return result;
 }
 
-bool Utils::isDwmCompositionAvailable()
+bool Utils::isDwmCompositionEnabled()
 {
     // DWM composition is always enabled and can't be disabled since Windows 8.
     if (isWin8OrGreater()) {
@@ -111,17 +110,17 @@ bool Utils::isDwmCompositionAvailable()
         return (enabled != FALSE);
     } else {
         qWarning() << getSystemErrorMessage(QStringLiteral("DwmIsCompositionEnabled"), hr);
-        const QSettings registry(QString::fromUtf8(kDwmRegistryKey), QSettings::NativeFormat);
+        const QSettings registry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
         bool ok = false;
         const DWORD value = registry.value(QStringLiteral("Composition"), 0).toUInt(&ok);
         return (ok && (value != 0));
     }
 }
 
-int Utils::getSystemMetric(const QWindow *window, const SystemMetric metric, const bool dpiScale, const bool forceSystemValue)
+quint32 Utils::getSystemMetric(const HWND hWnd, const SystemMetric metric, const bool dpiScale)
 {
-    Q_ASSERT(window);
-    if (!window) {
+    Q_ASSERT(hWnd);
+    if (!hWnd) {
         return 0;
     }
     const qreal devicePixelRatio = window->devicePixelRatio();
@@ -142,7 +141,9 @@ int Utils::getSystemMetric(const QWindow *window, const SystemMetric metric, con
             } else {
                 qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
                 // The padded border will disappear if DWM composition is disabled.
-                const int defaultResizeBorderThickness = (isDwmCompositionAvailable() ? kDefaultResizeBorderThicknessAero : kDefaultResizeBorderThicknessClassic);
+                const int defaultResizeBorderThickness = (isDwmCompositionEnabled() ?
+                                                              Constants::kDefaultResizeBorderThicknessAero :
+                                                              Constants::kDefaultResizeBorderThicknessClassic);
                 if (dpiScale) {
                     return qRound(static_cast<qreal>(defaultResizeBorderThickness) * devicePixelRatio);
                 } else {
@@ -166,9 +167,9 @@ int Utils::getSystemMetric(const QWindow *window, const SystemMetric metric, con
             } else {
                 qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
                 if (dpiScale) {
-                    return qRound(static_cast<qreal>(kDefaultCaptionHeight) * devicePixelRatio);
+                    return qRound(static_cast<qreal>(Constants::kDefaultCaptionHeight) * devicePixelRatio);
                 } else {
-                    return kDefaultCaptionHeight;
+                    return Constants::kDefaultCaptionHeight;
                 }
             }
         }
@@ -191,49 +192,51 @@ int Utils::getSystemMetric(const QWindow *window, const SystemMetric metric, con
     return 0;
 }
 
-void Utils::triggerFrameChange(const WId winId)
+bool Utils::triggerFrameChange(const HWND hWnd)
 {
-    Q_ASSERT(winId);
-    if (!winId) {
-        return;
+    Q_ASSERT(hWnd);
+    if (!hWnd) {
+        return false;
     }
-    const auto hwnd = reinterpret_cast<HWND>(winId);
     constexpr UINT flags = (SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOOWNERZORDER);
-    if (SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, flags) == FALSE) {
+    if (SetWindowPos(hWnd, nullptr, 0, 0, 0, 0, flags) == FALSE) {
         qWarning() << getSystemErrorMessage(QStringLiteral("SetWindowPos"));
+        return false;
     }
+    return true;
 }
 
-void Utils::updateFrameMargins(const WId winId, const bool reset)
+bool Utils::updateFrameMargins(const HWND hWnd, const bool reset)
 {
     // DwmExtendFrameIntoClientArea() will always fail if DWM composition is disabled.
     // No need to try in this case.
-    if (!isDwmCompositionAvailable()) {
-        return;
+    if (!isDwmCompositionEnabled()) {
+        return false;
     }
-    Q_ASSERT(winId);
-    if (!winId) {
-        return;
+    Q_ASSERT(hWnd);
+    if (!hWnd) {
+        return false;
     }
-    const auto hwnd = reinterpret_cast<HWND>(winId);
     const MARGINS margins = reset ? MARGINS{0, 0, 0, 0} : MARGINS{1, 1, 1, 1};
-    const HRESULT hr = DwmExtendFrameIntoClientArea(hwnd, &margins);
+    const HRESULT hr = DwmExtendFrameIntoClientArea(hWnd, &margins);
     if (FAILED(hr)) {
         qWarning() << getSystemErrorMessage(QStringLiteral("DwmExtendFrameIntoClientArea"), hr);
+        return false;
     }
+    return true;
 }
 
-void Utils::updateQtFrameMargins(QWindow *window, const bool enable)
+bool Utils::updateQtInternalFrameMargins(QWindow *window, const bool enable)
 {
     Q_ASSERT(window);
     if (!window) {
-        return;
+        return false;
     }
     const bool useCustomFrameMargin = (enable && (window->windowState() != Qt::WindowMaximized)
                                          && (window->windowState() != Qt::WindowFullScreen));
     const int resizeBorderThickness = useCustomFrameMargin ?
-                                      Utils::getSystemMetric(window, SystemMetric::ResizeBorderThickness, true, true) : 0;
-    const int titleBarHeight = enable ? Utils::getSystemMetric(window, SystemMetric::TitleBarHeight, true, true) : 0;
+                                      Utils::getSystemMetric(window, SystemMetric::ResizeBorderThickness, true) : 0;
+    const int titleBarHeight = enable ? Utils::getSystemMetric(window, SystemMetric::TitleBarHeight, true) : 0;
     const QMargins margins = {-resizeBorderThickness, -titleBarHeight, -resizeBorderThickness, -resizeBorderThickness}; // left, top, right, bottom
     const QVariant marginsVar = QVariant::fromValue(margins);
     window->setProperty("_q_windowsCustomMargins", marginsVar);
@@ -253,6 +256,7 @@ void Utils::updateQtFrameMargins(QWindow *window, const bool enable)
         qWarning() << "Failed to retrieve the platform window.";
     }
 #endif
+    return true;
 }
 
 QString Utils::getSystemErrorMessage(const QString &function, const HRESULT hr)
@@ -296,7 +300,7 @@ QColor Utils::getColorizationColor()
     const HRESULT hr = DwmGetColorizationColor(&color, &opaque);
     if (FAILED(hr)) {
         qWarning() << getSystemErrorMessage(QStringLiteral("DwmGetColorizationColor"), hr);
-        const QSettings registry(QString::fromUtf8(kDwmRegistryKey), QSettings::NativeFormat);
+        const QSettings registry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
         bool ok = false;
         color = registry.value(QStringLiteral("ColorizationColor"), 0).toUInt(&ok);
         if (!ok || (color == 0)) {
@@ -306,18 +310,17 @@ QColor Utils::getColorizationColor()
     return QColor::fromRgba(color);
 }
 
-int Utils::getWindowVisibleFrameBorderThickness(const WId winId)
+quint32 Utils::getWindowVisibleFrameBorderThickness(const HWND hWnd)
 {
-    Q_ASSERT(winId);
-    if (!winId) {
+    Q_ASSERT(hWnd);
+    if (!hWnd) {
         return 1;
     }
     if (!isWin10OrGreater()) {
         return 1;
     }
-    const auto hWnd = reinterpret_cast<HWND>(winId);
     UINT value = 0;
-    const HRESULT hr = DwmGetWindowAttribute(hWnd, _DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &value, sizeof(value));
+    const HRESULT hr = DwmGetWindowAttribute(hWnd, Constants::_DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &value, sizeof(value));
     if (SUCCEEDED(hr)) {
         return value;
     } else {
@@ -334,7 +337,7 @@ bool Utils::shouldAppsUseDarkMode()
         return false;
     }
     const auto resultFromRegistry = []() -> bool {
-        const QSettings registry(QString::fromUtf8(kPersonalizeRegistryKey), QSettings::NativeFormat);
+        const QSettings registry(QString::fromUtf8(Constants::kPersonalizeRegistryKey), QSettings::NativeFormat);
         bool ok = false;
         const DWORD value = registry.value(QStringLiteral("AppsUseLightTheme"), 0).toUInt(&ok);
         return (ok && (value == 0));
@@ -376,9 +379,9 @@ ColorizationArea Utils::getColorizationArea()
         return ColorizationArea::None;
     }
     const QString keyName = QStringLiteral("ColorPrevalence");
-    const QSettings themeRegistry(QString::fromUtf8(kPersonalizeRegistryKey), QSettings::NativeFormat);
+    const QSettings themeRegistry(QString::fromUtf8(Constants::kPersonalizeRegistryKey), QSettings::NativeFormat);
     const DWORD themeValue = themeRegistry.value(keyName, 0).toUInt();
-    const QSettings dwmRegistry(QString::fromUtf8(kDwmRegistryKey), QSettings::NativeFormat);
+    const QSettings dwmRegistry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
     const DWORD dwmValue = dwmRegistry.value(keyName, 0).toUInt();
     const bool theme = (themeValue != 0);
     const bool dwm = (dwmValue != 0);

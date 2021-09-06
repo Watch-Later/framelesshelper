@@ -24,10 +24,38 @@
 
 #pragma once
 
-#include "customwindow_global.h"
-#include <QtGui/qwindow.h>
+#include "core_windows.h"
+#include <QtGui/qcolor.h>
+
+QT_BEGIN_NAMESPACE
+QT_FORWARD_DECLARE_CLASS(QWindow)
+QT_END_NAMESPACE
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
+
+enum class SystemMetric : int
+{
+    ResizeBorderThickness = 0,
+    CaptionHeight,
+    TitleBarHeight
+};
+
+enum class ColorizationArea : int
+{
+    None = 0,
+    StartMenu_TaskBar_ActionCenter,
+    TitleBar_WindowBorder,
+    All
+};
+
+enum class DpiAwareness : int
+{
+    Invalid = -1,
+    Unaware,
+    System,
+    PerMonitor,
+    PerMonitorV2
+};
 
 namespace Utils
 {
@@ -35,12 +63,19 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API bool isWin8OrGreater();
 [[nodiscard]] CUSTOMWINDOW_API bool isWin8Point1OrGreater();
 [[nodiscard]] CUSTOMWINDOW_API bool isWin10OrGreater();
-[[nodiscard]] CUSTOMWINDOW_API bool isDwmCompositionAvailable();
-CUSTOMWINDOW_API void triggerFrameChange(const WId winId);
-CUSTOMWINDOW_API void updateFrameMargins(const WId winId, const bool reset);
-CUSTOMWINDOW_API void updateQtFrameMargins(QWindow *window, const bool enable);
+[[nodiscard]] CUSTOMWINDOW_API bool isDwmCompositionEnabled();
+[[nodiscard]] CUSTOMWINDOW_API quint32 getSystemMetric(const HWND hWnd, const SystemMetric metric, const bool dpiScale);
+[[nodiscard]] CUSTOMWINDOW_API bool triggerFrameChange(const HWND hWnd);
+[[nodiscard]] CUSTOMWINDOW_API bool updateFrameMargins(const HWND hWnd, const bool reset);
+[[nodiscard]] CUSTOMWINDOW_API bool updateQtInternalFrameMargins(QWindow *window, const bool enable);
 [[nodiscard]] CUSTOMWINDOW_API QString getSystemErrorMessage(const QString &function, const HRESULT hr);
 [[nodiscard]] CUSTOMWINDOW_API QString getSystemErrorMessage(const QString &function);
+[[nodiscard]] CUSTOMWINDOW_API quint32 getWindowDPI(const HWND hWnd);
+[[nodiscard]] CUSTOMWINDOW_API bool isFullScreened(const HWND hWnd);
+[[nodiscard]] CUSTOMWINDOW_API QColor getColorizationColor();
+[[nodiscard]] CUSTOMWINDOW_API quint32 getWindowVisibleFrameBorderThickness(const HWND hWnd);
+[[nodiscard]] CUSTOMWINDOW_API bool shouldAppsUseDarkMode();
+[[nodiscard]] CUSTOMWINDOW_API ColorizationArea getColorizationArea();
 
 } // namespace Utils
 

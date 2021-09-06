@@ -25,23 +25,23 @@
 #pragma once
 
 #include "customwindow_global.h"
-#include <QtGui/qwindow.h>
+#include <QtCore/qpoint.h>
+
+QT_BEGIN_NAMESPACE
+QT_FORWARD_DECLARE_CLASS(QWindow)
+QT_FORWARD_DECLARE_CLASS(QObject)
+QT_END_NAMESPACE
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
 namespace Utils
 {
 
-[[nodiscard]] CUSTOMWINDOW_API int getSystemMetric(const QWindow *window, const SystemMetric metric, const bool dpiScale, const bool forceSystemValue = false);
-[[nodiscard]] CUSTOMWINDOW_API QWindow *findWindow(const WId winId);
+//[[nodiscard]] CUSTOMWINDOW_API QWindow *findWindow(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API bool isWindowFixedSize(const QWindow *window);
 [[nodiscard]] CUSTOMWINDOW_API bool isHitTestVisibleInChrome(const QWindow *window);
 [[nodiscard]] CUSTOMWINDOW_API QPointF mapOriginPointToWindow(const QObject *object);
-[[nodiscard]] CUSTOMWINDOW_API QColor getColorizationColor();
-[[nodiscard]] CUSTOMWINDOW_API int getWindowVisibleFrameBorderThickness(const WId winId);
-[[nodiscard]] CUSTOMWINDOW_API bool shouldAppsUseDarkMode();
-[[nodiscard]] CUSTOMWINDOW_API ColorizationArea getColorizationArea();
-[[nodiscard]] CUSTOMWINDOW_API bool showSystemMenu(const WId winId, const QPointF &pos);
+//[[nodiscard]] CUSTOMWINDOW_API bool showSystemMenu(const WId winId, const QPointF &pos);
 
 } // namespace Utils
 

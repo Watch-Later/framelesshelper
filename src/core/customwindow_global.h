@@ -97,19 +97,4 @@ namespace Constants
 
 } // namespace Constants
 
-enum class SystemMetric : int
-{
-    ResizeBorderThickness = 0,
-    CaptionHeight,
-    TitleBarHeight
-};
-
-enum class ColorizationArea : int
-{
-    None = 0,
-    StartMenu_TaskBar_ActionCenter,
-    TitleBar_WindowBorder,
-    All
-};
-
 CUSTOMWINDOW_END_NAMESPACE

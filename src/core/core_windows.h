@@ -48,6 +48,14 @@
 #define NOMINMAX
 #endif
 
+#ifndef _SHELL32_
+#define _SHELL32_
+#endif
+
+#ifndef _DWMAPI_
+#define _DWMAPI_
+#endif
+
 #include <sdkddkver.h>
 
 #ifndef NTDDI_WIN10_19H1
@@ -104,6 +112,8 @@
 #ifndef IsMaximized
 #define IsMaximized(window) (IsZoomed(window) != FALSE)
 #endif
+
+#include "customwindow_global.h"
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
