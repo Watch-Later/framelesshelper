@@ -123,70 +123,73 @@ quint32 Utils::getSystemMetric(const HWND hWnd, const SystemMetric metric, const
     if (!hWnd) {
         return 0;
     }
-    const qreal devicePixelRatio = window->devicePixelRatio();
-    const qreal scaleFactor = (dpiScale ? devicePixelRatio : 1.0);
+    static bool tried = false;
+    using sig = decltype(&::GetSystemMetricsForDpi);
+    static sig func = nullptr;
+    if (!func) {
+        if (tried) {
+            //
+        } else {
+            tried = true;
+            const HMODULE dll = LoadLibraryExW(L"User32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+            if (!dll) {
+                //
+            }
+            func = reinterpret_cast<sig>(GetProcAddress(dll, "GetSystemMetricsForDpi"));
+            if (!func) {
+                //
+            }
+        }
+    }
+    const quint32 dotsPerInch = getDotsPerInchForWindow(hWnd);
+    const quint32 dpi = (dpiScale ? dotsPerInch : USER_DEFAULT_SCREEN_DPI);
     switch (metric) {
     case SystemMetric::ResizeBorderThickness: {
-        const int resizeBorderThickness = window->property(Constants::kResizeBorderThicknessFlag).toInt();
-        if ((resizeBorderThickness > 0) && !forceSystemValue) {
-            return qRound(static_cast<qreal>(resizeBorderThickness) * scaleFactor);
-        } else {
-            const int result = GetSystemMetrics(SM_CXSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
-            if (result > 0) {
-                if (dpiScale) {
-                    return result;
-                } else {
-                    return qRound(static_cast<qreal>(result) / devicePixelRatio);
-                }
+        const int result = GetSystemMetrics(SM_CXSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+        if (result > 0) {
+            if (dpiScale) {
+                return result;
             } else {
-                qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
-                // The padded border will disappear if DWM composition is disabled.
-                const int defaultResizeBorderThickness = (isDwmCompositionEnabled() ?
-                                                              Constants::kDefaultResizeBorderThicknessAero :
-                                                              Constants::kDefaultResizeBorderThicknessClassic);
-                if (dpiScale) {
-                    return qRound(static_cast<qreal>(defaultResizeBorderThickness) * devicePixelRatio);
-                } else {
-                    return defaultResizeBorderThickness;
-                }
+                return qRound(static_cast<qreal>(result) / devicePixelRatio);
+            }
+        } else {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
+            // The padded border will disappear if DWM composition is disabled.
+            const int defaultResizeBorderThickness = (isDwmCompositionEnabled() ?
+                                                          Constants::kDefaultResizeBorderThicknessAero :
+                                                          Constants::kDefaultResizeBorderThicknessClassic);
+            if (dpiScale) {
+                return qRound(static_cast<qreal>(defaultResizeBorderThickness) * devicePixelRatio);
+            } else {
+                return defaultResizeBorderThickness;
             }
         }
     }
     case SystemMetric::CaptionHeight: {
-        const int captionHeight = window->property(Constants::kCaptionHeightFlag).toInt();
-        if ((captionHeight > 0) && !forceSystemValue) {
-            return qRound(static_cast<qreal>(captionHeight) * scaleFactor);
-        } else {
-            const int result = GetSystemMetrics(SM_CYCAPTION);
-            if (result > 0) {
-                if (dpiScale) {
-                    return result;
-                } else {
-                    return qRound(static_cast<qreal>(result) / devicePixelRatio);
-                }
+        const int result = GetSystemMetrics(SM_CYCAPTION);
+        if (result > 0) {
+            if (dpiScale) {
+                return result;
             } else {
-                qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
-                if (dpiScale) {
-                    return qRound(static_cast<qreal>(Constants::kDefaultCaptionHeight) * devicePixelRatio);
-                } else {
-                    return Constants::kDefaultCaptionHeight;
-                }
+                return qRound(static_cast<qreal>(result) / devicePixelRatio);
+            }
+        } else {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
+            if (dpiScale) {
+                return qRound(static_cast<qreal>(Constants::kDefaultCaptionHeight) * devicePixelRatio);
+            } else {
+                return Constants::kDefaultCaptionHeight;
             }
         }
     }
     case SystemMetric::TitleBarHeight: {
-        const int titleBarHeight = window->property(Constants::kTitleBarHeightFlag).toInt();
-        if ((titleBarHeight > 0) && !forceSystemValue) {
-            return qRound(static_cast<qreal>(titleBarHeight) * scaleFactor);
-        } else {
-            const int captionHeight = getSystemMetric(window,SystemMetric::CaptionHeight,
-                                                      dpiScale, forceSystemValue);
-            const int resizeBorderThickness = getSystemMetric(window, SystemMetric::ResizeBorderThickness,
-                                                              dpiScale, forceSystemValue);
-            return (((window->windowState() == Qt::WindowMaximized)
-                     || (window->windowState() == Qt::WindowFullScreen))
+        const int captionHeight = getSystemMetric(window,SystemMetric::CaptionHeight,
+                                                  dpiScale, forceSystemValue);
+        const int resizeBorderThickness = getSystemMetric(window, SystemMetric::ResizeBorderThickness,
+                                                          dpiScale, forceSystemValue);
+        return (((window->windowState() == Qt::WindowMaximized)
+                 || (window->windowState() == Qt::WindowFullScreen))
                     ? captionHeight : (captionHeight + resizeBorderThickness));
-        }
     }
     }
     return 0;

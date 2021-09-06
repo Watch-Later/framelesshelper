@@ -70,7 +70,8 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API bool updateQtInternalFrameMargins(QWindow *window, const bool enable);
 [[nodiscard]] CUSTOMWINDOW_API QString getSystemErrorMessage(const QString &function, const HRESULT hr);
 [[nodiscard]] CUSTOMWINDOW_API QString getSystemErrorMessage(const QString &function);
-[[nodiscard]] CUSTOMWINDOW_API quint32 getWindowDPI(const HWND hWnd);
+[[nodiscard]] CUSTOMWINDOW_API quint32 getDotsPerInchForWindow(const HWND hWnd);
+[[nodiscard]] CUSTOMWINDOW_API qreal getDevicePixelRatioForWindow(const HWND hWnd);
 [[nodiscard]] CUSTOMWINDOW_API bool isFullScreened(const HWND hWnd);
 [[nodiscard]] CUSTOMWINDOW_API QColor getColorizationColor();
 [[nodiscard]] CUSTOMWINDOW_API quint32 getWindowVisibleFrameBorderThickness(const HWND hWnd);
