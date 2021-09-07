@@ -24,12 +24,8 @@
 
 #pragma once
 
-#include "core_windows.h"
-#include <QtGui/qcolor.h>
-
-QT_BEGIN_NAMESPACE
-QT_FORWARD_DECLARE_CLASS(QWindow)
-QT_END_NAMESPACE
+#include "customwindow_global.h"
+#include <QtGui/qwindowdefs.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
@@ -72,7 +68,10 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API QString getSystemErrorMessage(const QString &function, const HRESULT hr);
 [[nodiscard]] CUSTOMWINDOW_API QString getSystemErrorMessage(const QString &function);
 [[nodiscard]] CUSTOMWINDOW_API quint32 getDPIForWindow(const WId winId);
+[[nodiscard]] CUSTOMWINDOW_API bool isMinimized(const WId winId);
+[[nodiscard]] CUSTOMWINDOW_API bool isMaximized(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API bool isFullScreened(const WId winId);
+[[nodiscard]] CUSTOMWINDOW_API bool isWindowNoState(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API QColor getColorizationColor();
 [[nodiscard]] CUSTOMWINDOW_API quint32 getWindowVisibleFrameBorderThickness(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API bool shouldAppsUseDarkMode();

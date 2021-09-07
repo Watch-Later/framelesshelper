@@ -75,7 +75,12 @@
 
 #include <QtCore/qt_windows.h>
 #include <shellapi.h>
+#include <shellscalingapi.h>
 #include <dwmapi.h>
+
+#ifndef USER_DEFAULT_SCREEN_DPI
+#define USER_DEFAULT_SCREEN_DPI (96)
+#endif
 
 #ifndef WM_NCUAHDRAWCAPTION
 #define WM_NCUAHDRAWCAPTION (0x00AE)
@@ -120,14 +125,14 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
 namespace Constants
 {
 
-[[maybe_unused]] constexpr int kAutoHideTaskbarThickness = 2; // The thickness of an auto-hide taskbar in pixels
+[[maybe_unused]] constexpr quint32 kAutoHideTaskbarThickness = 2; // The thickness of an auto-hide taskbar in pixels
 
 [[maybe_unused]] constexpr char kDwmRegistryKey[] = R"(HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM)";
 [[maybe_unused]] constexpr char kPersonalizeRegistryKey[] = R"(HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize)";
 
-[[maybe_unused]] constexpr int kDefaultResizeBorderThicknessClassic = 4;
-[[maybe_unused]] constexpr int kDefaultResizeBorderThicknessAero = 8;
-[[maybe_unused]] constexpr int kDefaultCaptionHeight = 23;
+[[maybe_unused]] constexpr quint32 kDefaultResizeBorderThicknessClassic = 4;
+[[maybe_unused]] constexpr quint32 kDefaultResizeBorderThicknessAero = 8;
+[[maybe_unused]] constexpr quint32 kDefaultCaptionHeight = 23;
 
 [[maybe_unused]] constexpr DWORD _DWMWA_VISIBLE_FRAME_BORDER_THICKNESS = 37;
 

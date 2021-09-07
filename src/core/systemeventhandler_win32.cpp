@@ -165,7 +165,7 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
         }
         const auto clientRect = &(reinterpret_cast<LPNCCALCSIZE_PARAMS>(msg->lParam)->rgrc[0]);
         bool nonClientAreaExists = false;
-        const bool max = IsMaximized(msg->hwnd);
+        const bool max = Utils::isMaximized(msg->hwnd);
         const bool full = Utils::isFullScreened(msg->hwnd);
         // We don't need this correction when we're fullscreen. We will
         // have the WS_POPUP size, so we don't have to worry about
@@ -433,7 +433,7 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
         const LONG windowWidth = clientRect.right;
         const quint32 resizeBorderThickness = Utils::getSystemMetric(msg->hwnd, SystemMetric::ResizeBorderThickness, true);
         const quint32 titleBarHeight = Utils::getSystemMetric(msg->hwnd, SystemMetric::TitleBarHeight, true);
-        const bool max = IsMaximized(msg->hwnd);
+        const bool max = Utils::isMaximized(msg->hwnd);
         const bool full = Utils::isFullScreened(msg->hwnd);
         bool isTitleBar = false;
         if (max || full) {
@@ -441,7 +441,7 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
                     && (windowPos.x >= 0) && (windowPos.x <= windowWidth)
                     && !Utils::isHitTestVisibleInChrome(window);
         }
-        if (window->windowState() == Qt::WindowNoState) {
+        if (Utils::isWindowNoState()) {
             isTitleBar = (windowPos.y > resizeBorderThickness) && (windowPos.y <= titleBarHeight)
                     && (windowPos.x > resizeBorderThickness) && (windowPos.x < (windowWidth - resizeBorderThickness))
                     && !Utils::isHitTestVisibleInChrome(window);

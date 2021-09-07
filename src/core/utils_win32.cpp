@@ -23,6 +23,7 @@
  */
 
 #include "utils.h"
+#include "core_windows.h"
 #include <QtCore/qdebug.h>
 #include <QtCore/qsettings.h>
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
@@ -42,12 +43,6 @@ Q_DECLARE_METATYPE(QMargins)
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-[[nodiscard]] static inline QPointF extractMousePositionFromLParam(const LPARAM lParam)
-{
-    const POINT nativePos = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-    return QPointF(static_cast<qreal>(nativePos.x), static_cast<qreal>(nativePos.y));
-}
-
 [[nodiscard]] static inline bool isWin10RS1OrGreater()
 {
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
@@ -66,6 +61,69 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     static const bool result = (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS10);
 #endif
     return result;
+}
+
+[[nodiscard]] static inline quint32 __GetSystemMetricsForDpi(const int nIndex, const quint32 dpi)
+{
+    Q_ASSERT(dpi != 0);
+    if (dpi == 0) {
+        return 0;
+    }
+    static bool tried = false;
+    using GetSystemMetricsForDpiSig = decltype(&::GetSystemMetricsForDpi);
+    static GetSystemMetricsForDpiSig GetSystemMetricsForDpiFunc = nullptr;
+    if (isWin10RS1OrGreater()) {
+        if (!GetSystemMetricsForDpiFunc) {
+            if (!tried) {
+                tried = true;
+                const HMODULE dll = LoadLibraryExW(L"User32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                if (dll) {
+                    GetSystemMetricsForDpiFunc = reinterpret_cast<GetSystemMetricsForDpiSig>(GetProcAddress(dll, "GetSystemMetricsForDpi"));
+                    if (!GetSystemMetricsForDpiFunc) {
+                        qWarning() << Utils::getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                } else {
+                    qWarning() << Utils::getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+                }
+            }
+        }
+    }
+    if (GetSystemMetricsForDpiFunc) {
+        const int result = GetSystemMetricsForDpiFunc(nIndex, dpi);
+        if (result > 0) {
+            return result;
+        } else {
+            qWarning() << Utils::getSystemErrorMessage(QStringLiteral("GetSystemMetricsForDpi"));
+            return 0;
+        }
+    } else {
+        const auto value = static_cast<qreal>(GetSystemMetrics(nIndex));
+        if (value <= 0.0) {
+            qWarning() << Utils::getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
+            return 0;
+        }
+        const DPIAwareness dpiAwareness = Utils::getDPIAwarenessForWindow(reinterpret_cast<WId>(nullptr));
+        if (dpiAwareness == DPIAwareness::Invalid) {
+            qWarning() << "Failed to retrieve the DPI awareness for the current process.";
+            return 0;
+        }
+        const qreal dpr = (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI));
+        if (dpiAwareness == DPIAwareness::Unaware) {
+            return qRound(value * dpr);
+        } else {
+            const quint32 currentDPI = Utils::getDPIForWindow(reinterpret_cast<WId>(nullptr));
+            if (currentDPI == 0) {
+                qWarning() << "Failed to retrieve the DPI for the current process.";
+                return 0;
+            }
+            const qreal currentDPR = (static_cast<qreal>(currentDPI) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI));
+            if (currentDPR == dpr) {
+                return qRound(value);
+            } else {
+                return qRound((value / currentDPR) * dpr);
+            }
+        }
+    }
 }
 
 bool Utils::isWin8OrGreater()
@@ -98,7 +156,7 @@ bool Utils::isWin10OrGreater()
     return result;
 }
 
-bool Utils::isDwmCompositionEnabled()
+bool Utils::isCompositionEnabled()
 {
     // DWM composition is always enabled and can't be disabled since Windows 8.
     if (isWin8OrGreater()) {
@@ -117,111 +175,80 @@ bool Utils::isDwmCompositionEnabled()
     }
 }
 
-quint32 Utils::getSystemMetric(const HWND hWnd, const SystemMetric metric, const bool dpiScale)
+quint32 Utils::getSystemMetric(const WId winId, const SystemMetric metric, const bool dpiScale)
 {
-    Q_ASSERT(hWnd);
-    if (!hWnd) {
+    Q_ASSERT(winId);
+    if (!winId) {
         return 0;
     }
-    static bool tried = false;
-    using sig = decltype(&::GetSystemMetricsForDpi);
-    static sig func = nullptr;
-    if (!func) {
-        if (tried) {
-            //
-        } else {
-            tried = true;
-            const HMODULE dll = LoadLibraryExW(L"User32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-            if (!dll) {
-                //
-            }
-            func = reinterpret_cast<sig>(GetProcAddress(dll, "GetSystemMetricsForDpi"));
-            if (!func) {
-                //
-            }
-        }
-    }
-    const quint32 dotsPerInch = getDotsPerInchForWindow(hWnd);
-    const quint32 dpi = (dpiScale ? dotsPerInch : USER_DEFAULT_SCREEN_DPI);
+    const quint32 dpi = (dpiScale ? getDPIForWindow(winId) : USER_DEFAULT_SCREEN_DPI);
+    const qreal dpr = (dpiScale ? (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI)) : 1.0);
     switch (metric) {
     case SystemMetric::ResizeBorderThickness: {
-        const int result = GetSystemMetrics(SM_CXSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+        const quint32 result = __GetSystemMetricsForDpi(SM_CXSIZEFRAME, dpi) + __GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
         if (result > 0) {
-            if (dpiScale) {
-                return result;
-            } else {
-                return qRound(static_cast<qreal>(result) / devicePixelRatio);
-            }
+            return result;
         } else {
-            qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
             // The padded border will disappear if DWM composition is disabled.
-            const int defaultResizeBorderThickness = (isDwmCompositionEnabled() ?
+            const quint32 defaultResizeBorderThickness = (isCompositionEnabled() ?
                                                           Constants::kDefaultResizeBorderThicknessAero :
                                                           Constants::kDefaultResizeBorderThicknessClassic);
             if (dpiScale) {
-                return qRound(static_cast<qreal>(defaultResizeBorderThickness) * devicePixelRatio);
+                return qRound(static_cast<qreal>(defaultResizeBorderThickness) * dpr);
             } else {
                 return defaultResizeBorderThickness;
             }
         }
     }
     case SystemMetric::CaptionHeight: {
-        const int result = GetSystemMetrics(SM_CYCAPTION);
+        const quint32 result = __GetSystemMetricsForDpi(SM_CYCAPTION, dpi);
         if (result > 0) {
-            if (dpiScale) {
-                return result;
-            } else {
-                return qRound(static_cast<qreal>(result) / devicePixelRatio);
-            }
+            return result;
         } else {
-            qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
             if (dpiScale) {
-                return qRound(static_cast<qreal>(Constants::kDefaultCaptionHeight) * devicePixelRatio);
+                return qRound(static_cast<qreal>(Constants::kDefaultCaptionHeight) * dpr);
             } else {
                 return Constants::kDefaultCaptionHeight;
             }
         }
     }
     case SystemMetric::TitleBarHeight: {
-        const int captionHeight = getSystemMetric(window,SystemMetric::CaptionHeight,
-                                                  dpiScale, forceSystemValue);
-        const int resizeBorderThickness = getSystemMetric(window, SystemMetric::ResizeBorderThickness,
-                                                          dpiScale, forceSystemValue);
-        return (((window->windowState() == Qt::WindowMaximized)
-                 || (window->windowState() == Qt::WindowFullScreen))
-                    ? captionHeight : (captionHeight + resizeBorderThickness));
+        const quint32 captionHeight = getSystemMetric(winId, SystemMetric::CaptionHeight, dpiScale);
+        const quint32 resizeBorderThickness = getSystemMetric(winId, SystemMetric::ResizeBorderThickness, dpiScale);
+        return ((isMaximized(winId) || isFullScreened(winId)) ? captionHeight : (captionHeight + resizeBorderThickness));
     }
     }
     return 0;
 }
 
-bool Utils::triggerFrameChange(const HWND hWnd)
+bool Utils::triggerFrameChange(const WId winId)
 {
-    Q_ASSERT(hWnd);
-    if (!hWnd) {
+    Q_ASSERT(winId);
+    if (!winId) {
         return false;
     }
     constexpr UINT flags = (SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOOWNERZORDER);
-    if (SetWindowPos(hWnd, nullptr, 0, 0, 0, 0, flags) == FALSE) {
+    if (SetWindowPos(reinterpret_cast<HWND>(winId), nullptr, 0, 0, 0, 0, flags) == FALSE) {
         qWarning() << getSystemErrorMessage(QStringLiteral("SetWindowPos"));
         return false;
     }
     return true;
 }
 
-bool Utils::updateFrameMargins(const HWND hWnd, const bool reset)
+bool Utils::updateFrameMargins(const WId winId, const bool reset)
 {
     // DwmExtendFrameIntoClientArea() will always fail if DWM composition is disabled.
     // No need to try in this case.
-    if (!isDwmCompositionEnabled()) {
+    if (!isCompositionEnabled()) {
         return false;
     }
-    Q_ASSERT(hWnd);
-    if (!hWnd) {
+    Q_ASSERT(winId);
+    if (!winId) {
         return false;
     }
-    const MARGINS margins = reset ? MARGINS{0, 0, 0, 0} : MARGINS{1, 1, 1, 1};
-    const HRESULT hr = DwmExtendFrameIntoClientArea(hWnd, &margins);
+    const int margin = (reset ? 0 : getWindowVisibleFrameBorderThickness(winId));
+    const MARGINS margins = {margin, margin, margin, margin};
+    const HRESULT hr = DwmExtendFrameIntoClientArea(reinterpret_cast<HWND>(winId), &margins);
     if (FAILED(hr)) {
         qWarning() << getSystemErrorMessage(QStringLiteral("DwmExtendFrameIntoClientArea"), hr);
         return false;
@@ -235,11 +262,10 @@ bool Utils::updateQtInternalFrameMargins(QWindow *window, const bool enable)
     if (!window) {
         return false;
     }
-    const bool useCustomFrameMargin = (enable && (window->windowState() != Qt::WindowMaximized)
-                                         && (window->windowState() != Qt::WindowFullScreen));
-    const int resizeBorderThickness = useCustomFrameMargin ?
-                                      Utils::getSystemMetric(window, SystemMetric::ResizeBorderThickness, true) : 0;
-    const int titleBarHeight = enable ? Utils::getSystemMetric(window, SystemMetric::TitleBarHeight, true) : 0;
+    const WId winId = window->winId();
+    const bool useCustomFrameMargin = (enable && !isMaximized(winId) && !isFullScreened(winId));
+    const int resizeBorderThickness = useCustomFrameMargin ? Utils::getSystemMetric(winId, SystemMetric::ResizeBorderThickness, true) : 0;
+    const int titleBarHeight = enable ? Utils::getSystemMetric(winId, SystemMetric::TitleBarHeight, true) : 0;
     const QMargins margins = {-resizeBorderThickness, -titleBarHeight, -resizeBorderThickness, -resizeBorderThickness}; // left, top, right, bottom
     const QVariant marginsVar = QVariant::fromValue(margins);
     window->setProperty("_q_windowsCustomMargins", marginsVar);
@@ -313,17 +339,17 @@ QColor Utils::getColorizationColor()
     return QColor::fromRgba(color);
 }
 
-quint32 Utils::getWindowVisibleFrameBorderThickness(const HWND hWnd)
+quint32 Utils::getWindowVisibleFrameBorderThickness(const WId winId)
 {
-    Q_ASSERT(hWnd);
-    if (!hWnd) {
+    Q_ASSERT(winId);
+    if (!winId) {
         return 1;
     }
     if (!isWin10OrGreater()) {
         return 1;
     }
     UINT value = 0;
-    const HRESULT hr = DwmGetWindowAttribute(hWnd, Constants::_DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &value, sizeof(value));
+    const HRESULT hr = DwmGetWindowAttribute(reinterpret_cast<HWND>(winId), Constants::_DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &value, sizeof(value));
     if (SUCCEEDED(hr)) {
         return value;
     } else {
@@ -353,26 +379,27 @@ bool Utils::shouldAppsUseDarkMode()
         return resultFromRegistry();
     } else {
         static bool tried = false;
-        using sig = BOOL(WINAPI *)();
-        static sig func = nullptr;
-        if (!func) {
-            if (tried) {
-                return resultFromRegistry();
-            } else {
+        using ShouldAppsUseDarkModeSig = BOOL(WINAPI *)();
+        static ShouldAppsUseDarkModeSig ShouldAppsUseDarkModeFunc = nullptr;
+        if (!ShouldAppsUseDarkModeFunc) {
+            if (!tried) {
                 tried = true;
                 const HMODULE dll = LoadLibraryExW(L"UxTheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                if (!dll) {
+                if (dll) {
+                    ShouldAppsUseDarkModeFunc = reinterpret_cast<ShouldAppsUseDarkModeSig>(GetProcAddress(dll, MAKEINTRESOURCEA(132)));
+                    if (!ShouldAppsUseDarkModeFunc) {
+                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                } else {
                     qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
-                    return resultFromRegistry();
-                }
-                func = reinterpret_cast<sig>(GetProcAddress(dll, MAKEINTRESOURCEA(132)));
-                if (!func) {
-                    qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
-                    return resultFromRegistry();
                 }
             }
         }
-        return (func() != FALSE);
+        if (ShouldAppsUseDarkModeFunc) {
+            return (ShouldAppsUseDarkModeFunc() != FALSE);
+        } else {
+            return resultFromRegistry();
+        }
     }
 }
 
@@ -398,6 +425,7 @@ ColorizationArea Utils::getColorizationArea()
     return ColorizationArea::None;
 }
 
+#if 0
 bool Utils::isThemeChanged(const void *data)
 {
     Q_ASSERT(data);
@@ -471,7 +499,7 @@ bool Utils::showSystemMenu(const WId winId, const QPointF &pos)
         }
         return true;
     };
-    const bool max = IsMaximized(hWnd);
+    const bool max = isMaximized(winId);
     if (!setState(SC_RESTORE, max)) {
         return false;
     }
@@ -503,6 +531,305 @@ bool Utils::showSystemMenu(const WId winId, const QPointF &pos)
         }
     }
     return true;
+}
+#endif
+
+quint32 Utils::getDPIForWindow(const WId winId)
+{
+    static bool tried = false;
+    using GetDpiForWindowSig = decltype(&::GetDpiForWindow);
+    static GetDpiForWindowSig GetDpiForWindowFunc = nullptr;
+    using GetSystemDpiForProcessSig = decltype(&::GetSystemDpiForProcess);
+    static GetSystemDpiForProcessSig GetSystemDpiForProcessFunc = nullptr;
+    using GetDpiForSystemSig = decltype(&::GetDpiForSystem);
+    static GetDpiForSystemSig GetDpiForSystemFunc = nullptr;
+    using GetDpiForMonitorSig = decltype(&::GetDpiForMonitor);
+    static GetDpiForMonitorSig GetDpiForMonitorFunc = nullptr;
+    if (isWin10RS1OrGreater()) {
+        if (!GetDpiForWindowFunc || !GetSystemDpiForProcessFunc || !GetDpiForSystemFunc) {
+            if (!tried) {
+                tried = true;
+                const HMODULE dll = LoadLibraryExW(L"User32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                if (dll) {
+                    GetDpiForWindowFunc = reinterpret_cast<GetDpiForWindowSig>(GetProcAddress(dll, "GetDpiForWindow"));
+                    if (!GetDpiForWindowFunc) {
+                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                    GetSystemDpiForProcessFunc = reinterpret_cast<GetSystemDpiForProcessSig>(GetProcAddress(dll, "GetSystemDpiForProcess"));
+                    if (!GetSystemDpiForProcessFunc) {
+                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                    GetDpiForSystemFunc = reinterpret_cast<GetDpiForSystemSig>(GetProcAddress(dll, "GetDpiForSystem"));
+                    if (!GetDpiForSystemFunc) {
+                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                } else {
+                    qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+                }
+            }
+        }
+    } else if (isWin8Point1OrGreater()) {
+        if (!GetDpiForMonitorFunc) {
+            if (!tried) {
+                tried = true;
+                const HMODULE dll = LoadLibraryExW(L"SHCore.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                if (dll) {
+                    GetDpiForMonitorFunc = reinterpret_cast<GetDpiForMonitorSig>(GetProcAddress(dll, "GetDpiForMonitor"));
+                    if (!GetDpiForMonitorFunc) {
+                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                } else {
+                    qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+                }
+            }
+        }
+    }
+    if (winId && GetDpiForWindowFunc) {
+        const quint32 result = GetDpiForWindowFunc(reinterpret_cast<HWND>(winId));
+        if (result > 0) {
+            return result;
+        } else {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetDpiForWindow"));
+            return USER_DEFAULT_SCREEN_DPI;
+        }
+    } else if (winId && GetDpiForMonitorFunc) {
+        const HMONITOR screen = MonitorFromWindow(reinterpret_cast<HWND>(winId), MONITOR_DEFAULTTONEAREST);
+        if (!screen) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("MonitorFromWindow"));
+            return USER_DEFAULT_SCREEN_DPI;
+        }
+        UINT dpiX = 0;
+        UINT dpiY = 0;
+        const HRESULT hr = GetDpiForMonitorFunc(screen, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+        if (FAILED(hr)) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetDpiForMonitor"), hr);
+            return USER_DEFAULT_SCREEN_DPI;
+        }
+        return qRound(static_cast<qreal>(dpiX + dpiY) / 2.0);
+    } else if (GetSystemDpiForProcessFunc || GetDpiForSystemFunc) {
+        if (GetSystemDpiForProcessFunc) {
+            const HANDLE hProcess = GetCurrentProcess();
+            if (!hProcess) {
+                qWarning() << getSystemErrorMessage(QStringLiteral("GetCurrentProcess"));
+                return USER_DEFAULT_SCREEN_DPI;
+            }
+            const quint32 result = GetSystemDpiForProcessFunc(hProcess);
+            if (result > 0) {
+                return result;
+            } else {
+                qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemDpiForProcess"));
+                return USER_DEFAULT_SCREEN_DPI;
+            }
+        } else {
+            const quint32 result = GetDpiForSystemFunc();
+            if (result > 0) {
+                return result;
+            } else {
+                qWarning() << getSystemErrorMessage(QStringLiteral("GetDpiForSystem"));
+                return USER_DEFAULT_SCREEN_DPI;
+            }
+        }
+    } else if (GetDpiForMonitorFunc) {
+        POINT pos = {0, 0};
+        if (GetCursorPos(&pos) == FALSE) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetCursorPos"));
+            return USER_DEFAULT_SCREEN_DPI;
+        }
+        const HMONITOR screen = MonitorFromPoint(pos, MONITOR_DEFAULTTONEAREST);
+        if (!screen) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("MonitorFromPoint"));
+            return USER_DEFAULT_SCREEN_DPI;
+        }
+        UINT dpiX = 0;
+        UINT dpiY = 0;
+        const HRESULT hr = GetDpiForMonitorFunc(screen, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+        if (FAILED(hr)) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetDpiForMonitor"), hr);
+            return USER_DEFAULT_SCREEN_DPI;
+        }
+        return qRound(static_cast<qreal>(dpiX + dpiY) / 2.0);
+    } else {
+        const HDC hDC = GetDC(nullptr);
+        if (hDC) {
+            const int dpiX = GetDeviceCaps(hDC, LOGPIXELSX);
+            if (dpiX <= 0) {
+                qWarning() << getSystemErrorMessage(QStringLiteral("GetDeviceCaps"));
+                // release dc
+                return USER_DEFAULT_SCREEN_DPI;
+            }
+            const int dpiY = GetDeviceCaps(hDC, LOGPIXELSY);
+            if (dpiY <= 0) {
+                qWarning() << getSystemErrorMessage(QStringLiteral("GetDeviceCaps"));
+                // release dc
+                return USER_DEFAULT_SCREEN_DPI;
+            }
+            if (ReleaseDC(nullptr, hDC) == 0) {
+                qWarning() << getSystemErrorMessage(QStringLiteral("ReleaseDC"));
+                // The DPI data is still valid, no need to return early.
+            }
+            return qRound(static_cast<qreal>(dpiX + dpiY) / 2.0);
+        } else {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetDC"));
+            return USER_DEFAULT_SCREEN_DPI;
+        }
+    }
+}
+
+bool Utils::isMinimized(const WId winId)
+{
+    Q_ASSERT(winId);
+    if (!winId) {
+        return false;
+    }
+    return IsMinimized(reinterpret_cast<HWND>(winId));
+}
+
+bool Utils::isMaximized(const WId winId)
+{
+    Q_ASSERT(winId);
+    if (!winId) {
+        return false;
+    }
+    return IsMaximized(reinterpret_cast<HWND>(winId));
+}
+
+bool Utils::isFullScreened(const WId winId)
+{
+    Q_ASSERT(winId);
+    if (!winId) {
+        return false;
+    }
+    const auto hWnd = reinterpret_cast<HWND>(winId);
+    RECT windowGeometry = {0, 0, 0, 0};
+    if (GetWindowRect(hWnd, &windowGeometry) == FALSE) {
+        qWarning() << getSystemErrorMessage(QStringLiteral("GetWindowRect"));
+        return false;
+    }
+    const HMONITOR screen = MonitorFromWindow(hWnd, MONITOR_DEFAULTTOPRIMARY);
+    if (!screen) {
+        qWarning() << getSystemErrorMessage(QStringLiteral("MonitorFromWindow"));
+        return false;
+    }
+    MONITORINFO screenInfo;
+    SecureZeroMemory(&screenInfo, sizeof(screenInfo));
+    screenInfo.cbSize = sizeof(screenInfo);
+    if (GetMonitorInfoW(screen, &screenInfo) == FALSE) {
+        qWarning() << getSystemErrorMessage(QStringLiteral("GetMonitorInfoW"));
+        return false;
+    }
+    const RECT screenGeometry = screenInfo.rcMonitor;
+    return ((windowGeometry.top == screenGeometry.top)
+            && (windowGeometry.bottom == screenGeometry.bottom)
+            && (windowGeometry.left == screenGeometry.left)
+            && (windowGeometry.right == screenGeometry.right));
+}
+
+bool Utils::isWindowNoState(const WId winId)
+{
+    Q_ASSERT(winId);
+    if (!winId) {
+        return false;
+    }
+    WINDOWPLACEMENT wp;
+    SecureZeroMemory(&wp, sizeof(wp));
+    wp.length = sizeof(wp);
+    if (GetWindowPlacement(reinterpret_cast<HWND>(winId), &wp) == FALSE) {
+        qWarning() << getSystemErrorMessage(QStringLiteral("GetWindowPlacement"));
+        return false;
+    }
+    return (wp.showCmd == SW_NORMAL);
+}
+
+DPIAwareness Utils::getDPIAwarenessForWindow(const WId winId)
+{
+    static bool tried = false;
+    using GetWindowDpiAwarenessContextSig = decltype(&::GetWindowDpiAwarenessContext);
+    static GetWindowDpiAwarenessContextSig GetWindowDpiAwarenessContextFunc = nullptr;
+    using GetThreadDpiAwarenessContextSig = decltype(&::GetThreadDpiAwarenessContext);
+    static GetThreadDpiAwarenessContextSig GetThreadDpiAwarenessContextFunc = nullptr;
+    using GetAwarenessFromDpiAwarenessContextSig = decltype(&::GetAwarenessFromDpiAwarenessContext);
+    static GetAwarenessFromDpiAwarenessContextSig GetAwarenessFromDpiAwarenessContextFunc = nullptr;
+    using GetProcessDpiAwarenessSig = decltype(&::GetProcessDpiAwareness);
+    static GetProcessDpiAwarenessSig GetProcessDpiAwarenessFunc = nullptr;
+    if (isWin10RS1OrGreater()) {
+        if (!GetWindowDpiAwarenessContextFunc || !GetThreadDpiAwarenessContextFunc || !GetAwarenessFromDpiAwarenessContextFunc) {
+            if (!tried) {
+                tried = true;
+                const HMODULE dll = LoadLibraryExW(L"User32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                if (dll) {
+                    GetWindowDpiAwarenessContextFunc = reinterpret_cast<GetWindowDpiAwarenessContextSig>(GetProcAddress(dll, "GetWindowDpiAwarenessContext"));
+                    if (!GetWindowDpiAwarenessContextFunc) {
+                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                    GetThreadDpiAwarenessContextFunc = reinterpret_cast<GetThreadDpiAwarenessContextSig>(GetProcAddress(dll, "GetThreadDpiAwarenessContext"));
+                    if (!GetThreadDpiAwarenessContextFunc) {
+                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                    GetAwarenessFromDpiAwarenessContextFunc = reinterpret_cast<GetAwarenessFromDpiAwarenessContextSig>(GetProcAddress(dll, "GetAwarenessFromDpiAwarenessContext"));
+                    if (!GetAwarenessFromDpiAwarenessContextFunc) {
+                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                } else {
+                    qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+                }
+            }
+        }
+    } else if (isWin8Point1OrGreater()) {
+        if (!GetProcessDpiAwarenessFunc) {
+            if (!tried) {
+                tried = true;
+                const HMODULE dll = LoadLibraryExW(L"SHCore.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                if (dll) {
+                    GetProcessDpiAwarenessFunc = reinterpret_cast<GetProcessDpiAwarenessSig>(GetProcAddress(dll, "GetProcessDpiAwareness"));
+                    if (!GetProcessDpiAwarenessFunc) {
+                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                } else {
+                    qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+                }
+            }
+        }
+    }
+    if (winId && GetWindowDpiAwarenessContextFunc && GetAwarenessFromDpiAwarenessContextFunc) {
+        const auto context = GetWindowDpiAwarenessContextFunc(reinterpret_cast<HWND>(winId));
+        if (context) {
+            const auto awareness = GetAwarenessFromDpiAwarenessContextFunc(context);
+            if (awareness == DPI_AWARENESS_INVALID) {
+                qWarning() << getSystemErrorMessage(QStringLiteral("GetAwarenessFromDpiAwarenessContext"));
+                return DPIAwareness::Invalid;
+            } else {
+                return static_cast<DPIAwareness>(awareness);
+            }
+        } else {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetWindowDpiAwarenessContext"));
+            return DPIAwareness::Invalid;
+        }
+    } else if (GetThreadDpiAwarenessContextFunc && GetAwarenessFromDpiAwarenessContextFunc) {
+        const auto context = GetThreadDpiAwarenessContextFunc();
+        if (context) {
+            const auto awareness = GetAwarenessFromDpiAwarenessContextFunc(context);
+            if (awareness == DPI_AWARENESS_INVALID) {
+                qWarning() << getSystemErrorMessage(QStringLiteral("GetAwarenessFromDpiAwarenessContext"));
+                return DPIAwareness::Invalid;
+            } else {
+                return static_cast<DPIAwareness>(awareness);
+            }
+        } else {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetThreadDpiAwarenessContext"));
+            return DPIAwareness::Invalid;
+        }
+    } else if (GetProcessDpiAwarenessFunc) {
+        PROCESS_DPI_AWARENESS awareness = PROCESS_DPI_UNAWARE;
+        const HRESULT hr = GetProcessDpiAwarenessFunc(nullptr, &awareness);
+        if (SUCCEEDED(hr)) {
+            return static_cast<DPIAwareness>(awareness);
+        } else {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetProcessDpiAwareness"), hr);
+            return DPIAwareness::Invalid;
+        }
+    } else {
+        return ((IsProcessDPIAware() == FALSE) ? DPIAwareness::Unaware : DPIAwareness::System);
+    }
 }
 
 CUSTOMWINDOW_END_NAMESPACE

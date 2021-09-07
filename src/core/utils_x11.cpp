@@ -69,13 +69,9 @@ int Utils::getSystemMetric(const QWindow *window, const SystemMetric metric, con
         if ((titleBarHeight > 0) && !forceSystemValue) {
             return qRound(static_cast<qreal>(titleBarHeight) * scaleFactor);
         } else {
-            const int captionHeight = getSystemMetric(window,SystemMetric::CaptionHeight,
-                                                      dpiScale, forceSystemValue);
-            const int resizeBorderThickness = getSystemMetric(window, SystemMetric::ResizeBorderThickness,
-                                                              dpiScale, forceSystemValue);
-            return (((window->windowState() == Qt::WindowMaximized)
-                     || (window->windowState() == Qt::WindowFullScreen))
-                    ? captionHeight : (captionHeight + resizeBorderThickness));
+            const int captionHeight = getSystemMetric(window, SystemMetric::CaptionHeight, dpiScale);
+            const int resizeBorderThickness = getSystemMetric(window, SystemMetric::ResizeBorderThickness, dpiScale);
+            return ((isMaximized(winId) || isFullScreened(winId)) ? captionHeight : (captionHeight + resizeBorderThickness));
         }
     }
     }
