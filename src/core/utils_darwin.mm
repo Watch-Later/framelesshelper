@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "utils_darwin.h"
+#include "utils.h"
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 

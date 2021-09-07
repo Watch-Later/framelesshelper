@@ -4,14 +4,12 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui REQUIRED)
 set(SOURCES
     customwindow_global.h
     utils.h
-    utils.cpp
     systemeventhandler.h
 )
 
 if(WIN32)
     list(APPEND SOURCES
         core_windows.h
-        utils_win32.h
         utils_win32.cpp
         systemeventhandler_win32.cpp
     )
@@ -19,7 +17,6 @@ endif()
 
 if(LINUX)
     list(APPEND SOURCES
-        utils_x11.h
         utils_x11.cpp
         systemeventhandler_x11.cpp
     )
@@ -27,7 +24,6 @@ endif()
 
 if(DARWIN)
     list(APPEND SOURCES
-        utils_darwin.h
         utils_darwin.cpp
         systemeventhandler_darwin.cpp
     )

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "utils_win32.h"
+#include "utils.h"
 #include <QtCore/qdebug.h>
 #include <QtCore/qsettings.h>
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
