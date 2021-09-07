@@ -88,12 +88,22 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
 namespace Constants
 {
 
-[[maybe_unused]] constexpr char kFramelessModeFlag[] = "__CUSTOMWINDOW_FRAMELESS_MODE_ENABLED";
+[[maybe_unused]] constexpr char kCustomWindowFrameFlag[] = "__CUSTOMWINDOW_CUSTOM_WINDOW_FRAME";
 [[maybe_unused]] constexpr char kResizeBorderThicknessFlag[] = "__CUSTOMWINDOW_RESIZE_BORDER_THICKNESS";
 [[maybe_unused]] constexpr char kCaptionHeightFlag[] = "__CUSTOMWINDOW_CAPTION_HEIGHT";
 [[maybe_unused]] constexpr char kTitleBarHeightFlag[] = "__CUSTOMWINDOW_TITLE_BAR_HEIGHT";
 [[maybe_unused]] constexpr char kHitTestVisibleInChromeFlag[] = "__CUSTOMWINDOW_HIT_TEST_VISIBLE_IN_CHROME";
-[[maybe_unused]] constexpr char kWindowFixedSizeFlag[] = "__CUSTOMWINDOW_WINDOW_FIXED_SIZE";
+[[maybe_unused]] constexpr char kWindowResizableFlag[] = "__CUSTOMWINDOW_WINDOW_RESIZABLE";
+[[maybe_unused]] constexpr char kAutoDetectHighContrastFlag[] = "__CUSTOMWINDOW_AUTO_DETECT_HIGH_CONTRAST";
+[[maybe_unused]] constexpr char kAutoDetectColorSchemeFlag[] = "__CUSTOMWINDOW_AUTO_DETECT_COLOR_SCHEME";
+[[maybe_unused]] constexpr char kFrameBorderVisibleFlag[] = "__CUSTOMWINDOW_FRAME_BORDER_VISIBLE";
+[[maybe_unused]] constexpr char kFrameBorderThicknessFlag[] = "__CUSTOMWINDOW_FRAME_BORDER_THICKNESS";
+[[maybe_unused]] constexpr char kFrameBorderColorFlag[] = "__CUSTOMWINDOW_FRAME_BORDER_COLOR";
+[[maybe_unused]] constexpr char kWindowIconVisibleFlag[] = "__CUSTOMWINDOW_WINDOW_ICON_VISIBLE";
+[[maybe_unused]] constexpr char kWindowIconFlag[] = "__CUSTOMWINDOW_WINDOW_ICON";
+[[maybe_unused]] constexpr char kWindowTitleAlignmentFlag[] = "__CUSTOMWINDOW_WINDOW_TITLE_ALIGNMENT";
+[[maybe_unused]] constexpr char kTitleBarBackgroundColorFlag[] = "__CUSTOMWINDOW_TITLE_BAR_BACKGROUND_COLOR";
+[[maybe_unused]] constexpr char kWindowHandleFlag[] = "__CUSTOMWINDOW_WINDOW_HANDLE";
 
 } // namespace Constants
 

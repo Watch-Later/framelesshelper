@@ -156,23 +156,51 @@ bool Utils::isWin10OrGreater()
     return result;
 }
 
+bool Utils::isWin11OrGreater()
+{
+    // ### TO BE IMPLEMENTED
+    static const bool result = false;
+    return result;
+}
+
 bool Utils::isCompositionEnabled()
 {
     // DWM composition is always enabled and can't be disabled since Windows 8.
     if (isWin8OrGreater()) {
         return true;
     }
-    BOOL enabled = FALSE;
-    const HRESULT hr = DwmIsCompositionEnabled(&enabled);
-    if (SUCCEEDED(hr)) {
-        return (enabled != FALSE);
-    } else {
-        qWarning() << getSystemErrorMessage(QStringLiteral("DwmIsCompositionEnabled"), hr);
-        const QSettings registry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
-        bool ok = false;
-        const DWORD value = registry.value(QStringLiteral("Composition"), 0).toUInt(&ok);
-        return (ok && (value != 0));
+    static bool tried = false;
+    using DwmIsCompositionEnabledSig = decltype(&::DwmIsCompositionEnabled);
+    static DwmIsCompositionEnabledSig DwmIsCompositionEnabledFunc = nullptr;
+    if (!DwmIsCompositionEnabledFunc) {
+        if (!tried) {
+            tried = true;
+            const HMODULE dll = LoadLibraryExW(L"DwmApi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+            if (dll) {
+                DwmIsCompositionEnabledFunc = reinterpret_cast<DwmIsCompositionEnabledSig>(GetProcAddress(dll, "DwmIsCompositionEnabled"));
+                if (!DwmIsCompositionEnabledFunc) {
+                    qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                }
+            } else {
+                qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+            }
+        }
     }
+    if (DwmIsCompositionEnabledFunc) {
+        BOOL enabled = FALSE;
+        const HRESULT hr = DwmIsCompositionEnabledFunc(&enabled);
+        if (SUCCEEDED(hr)) {
+            return (enabled != FALSE);
+        } else {
+            qWarning() << getSystemErrorMessage(QStringLiteral("DwmIsCompositionEnabled"), hr);
+        }
+    } else {
+        qWarning() << "DwmIsCompositionEnabled() is not available.";
+    }
+    const QSettings registry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
+    bool ok = false;
+    const DWORD value = registry.value(QStringLiteral("Composition"), 0).toUInt(&ok);
+    return (ok && (value != 0));
 }
 
 quint32 Utils::getSystemMetric(const WId winId, const SystemMetric metric, const bool dpiScale)
@@ -246,14 +274,36 @@ bool Utils::updateFrameMargins(const WId winId, const bool reset)
     if (!winId) {
         return false;
     }
-    const int margin = (reset ? 0 : getWindowVisibleFrameBorderThickness(winId));
-    const MARGINS margins = {margin, margin, margin, margin};
-    const HRESULT hr = DwmExtendFrameIntoClientArea(reinterpret_cast<HWND>(winId), &margins);
-    if (FAILED(hr)) {
-        qWarning() << getSystemErrorMessage(QStringLiteral("DwmExtendFrameIntoClientArea"), hr);
+    static bool tried = false;
+    using DwmExtendFrameIntoClientAreaSig = decltype(&::DwmExtendFrameIntoClientArea);
+    static DwmExtendFrameIntoClientAreaSig DwmExtendFrameIntoClientAreaFunc = nullptr;
+    if (!DwmExtendFrameIntoClientAreaFunc) {
+        if (!tried) {
+            tried = true;
+            const HMODULE dll = LoadLibraryExW(L"DwmApi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+            if (dll) {
+                DwmExtendFrameIntoClientAreaFunc = reinterpret_cast<DwmExtendFrameIntoClientAreaSig>(GetProcAddress(dll, "DwmExtendFrameIntoClientArea"));
+                if (!DwmExtendFrameIntoClientAreaFunc) {
+                    qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                }
+            } else {
+                qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+            }
+        }
+    }
+    if (DwmExtendFrameIntoClientAreaFunc) {
+        const int margin = (reset ? 0 : getWindowVisibleFrameBorderThickness(winId));
+        const MARGINS margins = {margin, margin, margin, margin};
+        const HRESULT hr = DwmExtendFrameIntoClientAreaFunc(reinterpret_cast<HWND>(winId), &margins);
+        if (FAILED(hr)) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("DwmExtendFrameIntoClientArea"), hr);
+            return false;
+        }
+        return true;
+    } else {
+        qWarning() << "DwmExtendFrameIntoClientArea() is not available.";
         return false;
     }
-    return true;
 }
 
 bool Utils::updateQtInternalFrameMargins(QWindow *window, const bool enable)
@@ -264,8 +314,8 @@ bool Utils::updateQtInternalFrameMargins(QWindow *window, const bool enable)
     }
     const WId winId = window->winId();
     const bool useCustomFrameMargin = (enable && !isMaximized(winId) && !isFullScreened(winId));
-    const int resizeBorderThickness = useCustomFrameMargin ? Utils::getSystemMetric(winId, SystemMetric::ResizeBorderThickness, true) : 0;
-    const int titleBarHeight = enable ? Utils::getSystemMetric(winId, SystemMetric::TitleBarHeight, true) : 0;
+    const int resizeBorderThickness = (useCustomFrameMargin ? getSystemMetric(winId, SystemMetric::ResizeBorderThickness, true) : 0);
+    const int titleBarHeight = (enable ? getSystemMetric(winId, SystemMetric::TitleBarHeight, true) : 0);
     const QMargins margins = {-resizeBorderThickness, -titleBarHeight, -resizeBorderThickness, -resizeBorderThickness}; // left, top, right, bottom
     const QVariant marginsVar = QVariant::fromValue(margins);
     window->setProperty("_q_windowsCustomMargins", marginsVar);
@@ -315,28 +365,50 @@ QString Utils::getSystemErrorMessage(const QString &function)
     if (function.isEmpty()) {
         return {};
     }
-    const HRESULT hr = HRESULT_FROM_WIN32(GetLastError());
-    if (SUCCEEDED(hr)) {
+    const DWORD dwError = GetLastError();
+    if (dwError == ERROR_SUCCESS) {
         return QStringLiteral("Operation succeeded.");
     }
-    return getSystemErrorMessage(function, hr);
+    return getSystemErrorMessage(function, HRESULT_FROM_WIN32(dwError));
 }
 
 QColor Utils::getColorizationColor()
 {
-    COLORREF color = RGB(0, 0, 0);
-    BOOL opaque = FALSE;
-    const HRESULT hr = DwmGetColorizationColor(&color, &opaque);
-    if (FAILED(hr)) {
-        qWarning() << getSystemErrorMessage(QStringLiteral("DwmGetColorizationColor"), hr);
-        const QSettings registry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
-        bool ok = false;
-        color = registry.value(QStringLiteral("ColorizationColor"), 0).toUInt(&ok);
-        if (!ok || (color == 0)) {
-            color = RGB(128, 128, 128); // Dark gray
+    static bool tried = false;
+    using DwmGetColorizationColorSig = decltype(&::DwmGetColorizationColor);
+    static DwmGetColorizationColorSig DwmGetColorizationColorFunc = nullptr;
+    if (!DwmGetColorizationColorFunc) {
+        if (!tried) {
+            tried = true;
+            const HMODULE dll = LoadLibraryExW(L"DwmApi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+            if (dll) {
+                DwmGetColorizationColorFunc = reinterpret_cast<DwmGetColorizationColorSig>(GetProcAddress(dll, "DwmGetColorizationColor"));
+                if (!DwmGetColorizationColorFunc) {
+                    qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                }
+            } else {
+                qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+            }
         }
     }
-    return QColor::fromRgba(color);
+    if (DwmGetColorizationColorFunc) {
+        COLORREF color = RGB(0, 0, 0);
+        BOOL opaque = FALSE;
+        const HRESULT hr = DwmGetColorizationColorFunc(&color, &opaque);
+        if (FAILED(hr)) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("DwmGetColorizationColor"), hr);
+            const QSettings registry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
+            bool ok = false;
+            color = registry.value(QStringLiteral("ColorizationColor"), 0).toUInt(&ok);
+            if (!ok || (color == 0)) {
+                color = RGB(128, 128, 128); // Dark gray
+            }
+        }
+        return QColor::fromRgba(color);
+    } else {
+        qWarning() << "DwmGetColorizationColor() is not available.";
+        return Qt::darkGray;
+    }
 }
 
 quint32 Utils::getWindowVisibleFrameBorderThickness(const WId winId)
@@ -348,16 +420,38 @@ quint32 Utils::getWindowVisibleFrameBorderThickness(const WId winId)
     if (!isWin10OrGreater()) {
         return 1;
     }
-    UINT value = 0;
-    const HRESULT hr = DwmGetWindowAttribute(reinterpret_cast<HWND>(winId), Constants::_DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &value, sizeof(value));
-    if (SUCCEEDED(hr)) {
-        return value;
-    } else {
-        // We just eat this error because this enum value was introduced in a very
-        // late Windows 10 version, so querying it's value will always result in
-        // a "parameter error" (code: 87) on systems before that value was introduced.
+    static bool tried = false;
+    using DwmGetWindowAttributeSig = decltype(&::DwmGetWindowAttribute);
+    static DwmGetWindowAttributeSig DwmGetWindowAttributeFunc = nullptr;
+    if (!DwmGetWindowAttributeFunc) {
+        if (!tried) {
+            tried = true;
+            const HMODULE dll = LoadLibraryExW(L"DwmApi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+            if (dll) {
+                DwmGetWindowAttributeFunc = reinterpret_cast<DwmGetWindowAttributeSig>(GetProcAddress(dll, "DwmGetWindowAttribute"));
+                if (!DwmGetWindowAttributeFunc) {
+                    qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                }
+            } else {
+                qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+            }
+        }
     }
-    return 1;
+    if (DwmGetWindowAttributeFunc) {
+        UINT value = 0;
+        const HRESULT hr = DwmGetWindowAttributeFunc(reinterpret_cast<HWND>(winId), Constants::_DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &value, sizeof(value));
+        if (SUCCEEDED(hr)) {
+            return value;
+        } else {
+            // We just eat this error because this enum value was introduced in a very
+            // late Windows 10 version, so querying it's value will always result in
+            // a "parameter error" (code: 87) on systems before that value was introduced.
+        }
+        return 1;
+    } else {
+        qWarning() << "DwmGetWindowAttribute() is not available.";
+        return 1;
+    }
 }
 
 bool Utils::shouldAppsUseDarkMode()
@@ -398,6 +492,7 @@ bool Utils::shouldAppsUseDarkMode()
         if (ShouldAppsUseDarkModeFunc) {
             return (ShouldAppsUseDarkModeFunc() != FALSE);
         } else {
+            qWarning() << "ShouldAppsUseDarkMode() is not available.";
             return resultFromRegistry();
         }
     }
@@ -700,11 +795,12 @@ bool Utils::isFullScreened(const WId winId)
         return false;
     }
     const auto hWnd = reinterpret_cast<HWND>(winId);
-    RECT windowGeometry = {0, 0, 0, 0};
-    if (GetWindowRect(hWnd, &windowGeometry) == FALSE) {
+    RECT rect = {0, 0, 0, 0};
+    if (GetWindowRect(hWnd, &rect) == FALSE) {
         qWarning() << getSystemErrorMessage(QStringLiteral("GetWindowRect"));
         return false;
     }
+    const RECT windowGeometry = rect;
     const HMONITOR screen = MonitorFromWindow(hWnd, MONITOR_DEFAULTTOPRIMARY);
     if (!screen) {
         qWarning() << getSystemErrorMessage(QStringLiteral("MonitorFromWindow"));

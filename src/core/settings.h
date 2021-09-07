@@ -26,14 +26,17 @@
 
 #include "customwindow_global.h"
 #include <QtCore/quuid.h>
+#include <QtCore/qvariant.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-namespace Core
+namespace Core::Settings
 {
 
-[[nodiscard]] CUSTOMWINDOW_API bool systemEventHandler(const QUuid &id, const void *event, qintptr *result);
+[[nodiscard]] CUSTOMWINDOW_API QUuid create(const QVariantHash &initialValue = {});
+[[nodiscard]] CUSTOMWINDOW_API QVariant get(const QUuid &id, const QString &name, const QVariant &defaultValue = {});
+[[nodiscard]] CUSTOMWINDOW_API bool set(const QUuid &id, const QString &name, const QVariant &value);
 
-} // namespace Core
+} // namespace Core::Settings
 
 CUSTOMWINDOW_END_NAMESPACE

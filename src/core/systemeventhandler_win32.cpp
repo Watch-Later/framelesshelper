@@ -23,12 +23,10 @@
  */
 
 #include "systemeventhandler.h"
+#include "utils.h"
+#include "settings.h"
+#include "core_windows.h"
 #include <QtCore/qdebug.h>
-//#include <QtCore/qvariant.h>
-//#include <QtCore/qcoreapplication.h>
-//#include <QtGui/qwindow.h>
-//#include "utils.h"
-#include "utils_win32.h"
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
@@ -69,8 +67,15 @@ void FramelessHelperWin::removeFramelessWindow(QWindow *window)
 }
 #endif
 
-bool Core::systemEventHandler(const void *event, qintptr *result)
+bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *result)
 {
+    Q_ASSERT(!id.isNull());
+    if (id.isNull()) {
+        return false;
+    }
+    if (!Settings::get(id, QString::fromUtf8(Constants::kCustomWindowFrameFlag), false).toBool()) {
+        return false;
+    }
     Q_ASSERT(event);
     Q_ASSERT(result);
     if (!event || !result) {
@@ -165,8 +170,9 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
         }
         const auto clientRect = &(reinterpret_cast<LPNCCALCSIZE_PARAMS>(msg->lParam)->rgrc[0]);
         bool nonClientAreaExists = false;
-        const bool max = Utils::isMaximized(msg->hwnd);
-        const bool full = Utils::isFullScreened(msg->hwnd);
+        const auto winId = reinterpret_cast<WId>(msg->hwnd);
+        const bool max = Utils::isMaximized(winId);
+        const bool full = Utils::isFullScreened(winId);
         // We don't need this correction when we're fullscreen. We will
         // have the WS_POPUP size, so we don't have to worry about
         // borders, and the default frame will be fine.
@@ -177,7 +183,7 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
             // then the window is clipped to the monitor so that the resize handle
             // do not appear because you don't need them (because you can't resize
             // a window when it's maximized unless you restore it).
-            const quint32 resizeBorderThickness = Utils::getSystemMetric(msg->hwnd, SystemMetric::ResizeBorderThickness, true);
+            const quint32 resizeBorderThickness = Utils::getSystemMetric(winId, SystemMetric::ResizeBorderThickness, true);
             clientRect->top += resizeBorderThickness;
             clientRect->bottom -= resizeBorderThickness;
             clientRect->left += resizeBorderThickness;
@@ -327,7 +333,7 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
     case WM_NCPAINT: {
         // 边框阴影处于非客户区的范围，因此如果直接阻止非客户区的绘制，会导致边框阴影丢失
 
-        if (!Utils::isDwmCompositionEnabled()) {
+        if (!Utils::isCompositionEnabled()) {
             // Only block WM_NCPAINT when DWM composition is disabled. If
             // it's blocked when DWM composition is enabled, the frame
             // shadow won't be drawn.
@@ -336,7 +342,7 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
         }
     } break;
     case WM_NCACTIVATE: {
-        if (Utils::isDwmCompositionEnabled()) {
+        if (Utils::isCompositionEnabled()) {
             // DefWindowProc won't repaint the window border if lParam
             // (normally a HRGN) is -1. See the following link's "lParam"
             // section:
@@ -431,20 +437,27 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
             break;
         }
         const LONG windowWidth = clientRect.right;
-        const quint32 resizeBorderThickness = Utils::getSystemMetric(msg->hwnd, SystemMetric::ResizeBorderThickness, true);
-        const quint32 titleBarHeight = Utils::getSystemMetric(msg->hwnd, SystemMetric::TitleBarHeight, true);
-        const bool max = Utils::isMaximized(msg->hwnd);
-        const bool full = Utils::isFullScreened(msg->hwnd);
+        const auto winId = reinterpret_cast<WId>(msg->hwnd);
+        const quint32 dpi = Utils::getDPIForWindow(winId);
+        const qreal dpr = (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI));
+        const quint32 resizeBorderThickness_user = Settings::get(id, QString::fromUtf8(Constants::kResizeBorderThicknessFlag), 0).toUInt();
+        const quint32 titleBarHeight_user = Settings::get(id, QString::fromUtf8(Constants::kTitleBarHeightFlag), 0).toUInt();
+        const quint32 resizeBorderThickness_sys = Utils::getSystemMetric(winId, SystemMetric::ResizeBorderThickness, true);
+        const quint32 titleBarHeight_sys = Utils::getSystemMetric(winId, SystemMetric::TitleBarHeight, true);
+        const quint32 resizeBorderThickness = ((resizeBorderThickness_user > 0) ? qRound(static_cast<qreal>(resizeBorderThickness_user) * dpr) : resizeBorderThickness_sys);
+        const quint32 titleBarHeight = ((titleBarHeight_user > 0) ? qRound(static_cast<qreal>(titleBarHeight_user) * dpr) : titleBarHeight_sys);
+        const bool max = Utils::isMaximized(winId);
+        const bool full = Utils::isFullScreened(winId);
         bool isTitleBar = false;
         if (max || full) {
-            isTitleBar = (windowPos.y >= 0) && (windowPos.y <= titleBarHeight)
-                    && (windowPos.x >= 0) && (windowPos.x <= windowWidth)
-                    && !Utils::isHitTestVisibleInChrome(window);
+            isTitleBar = ((windowPos.y >= 0) && (windowPos.y <= titleBarHeight)
+                          && (windowPos.x >= 0) && (windowPos.x <= windowWidth)
+                          /*&& !Utils::isHitTestVisibleInChrome(window)*/);
         }
-        if (Utils::isWindowNoState()) {
-            isTitleBar = (windowPos.y > resizeBorderThickness) && (windowPos.y <= titleBarHeight)
-                    && (windowPos.x > resizeBorderThickness) && (windowPos.x < (windowWidth - resizeBorderThickness))
-                    && !Utils::isHitTestVisibleInChrome(window);
+        if (Utils::isWindowNoState(winId)) {
+            isTitleBar = ((windowPos.y > resizeBorderThickness) && (windowPos.y <= titleBarHeight)
+                          && (windowPos.x > resizeBorderThickness) && (windowPos.x < (windowWidth - resizeBorderThickness))
+                          /*&& !Utils::isHitTestVisibleInChrome(window)*/);
         }
         const bool isTop = (windowPos.y <= resizeBorderThickness);
         *result = [clientRect, isTitleBar, &windowPos, resizeBorderThickness, windowWidth, isTop, max]{
@@ -460,9 +473,11 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
             const qreal factor = ((isTop || isBottom) ? 2.0 : 1.0);
             const bool isLeft = (windowPos.x <= qRound(static_cast<qreal>(resizeBorderThickness) * factor));
             const bool isRight = (windowPos.x >= (windowWidth - qRound(static_cast<qreal>(resizeBorderThickness) * factor)));
-            const bool fixedSize = Utils::isWindowFixedSize(window);
-            const auto getBorderValue = [fixedSize](const int value) -> int {
-                return (fixedSize ? HTCLIENT : value);
+            // ### FIXME
+            //const bool resizable = Utils::isWindowFixedSize(window);
+            const bool resizable = true;
+            const auto getBorderValue = [resizable](const int value) -> int {
+                return (resizable ? value : HTCLIENT);
             };
             if (isTop) {
                 if (isLeft) {
@@ -506,23 +521,26 @@ bool Core::systemEventHandler(const void *event, qintptr *result)
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("SetWindowLongPtrW"));
             break;
         }
-        Utils::triggerFrameChange(msg->hwnd);
+        const auto winId = reinterpret_cast<WId>(msg->hwnd);
+        Utils::triggerFrameChange(winId);
         const LRESULT ret = DefWindowProcW(msg->hwnd, msg->message, msg->wParam, msg->lParam);
         if (SetWindowLongPtrW(msg->hwnd, GWL_STYLE, oldStyle) == 0) {
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("SetWindowLongPtrW"));
             break;
         }
-        Utils::triggerFrameChange(msg->hwnd);
+        Utils::triggerFrameChange(winId);
         *result = ret;
         return true;
     } break;
     case WM_SIZE: {
+        const auto winId = reinterpret_cast<WId>(msg->hwnd);
         const bool normal = (msg->wParam == SIZE_RESTORED);
         const bool max = (msg->wParam == SIZE_MAXIMIZED);
-        const bool full = Utils::isFullScreened(msg->hwnd);
+        const bool full = Utils::isFullScreened(winId);
         if (normal || max || full) {
-            Utils::updateFrameMargins(msg->hwnd, (max || full));
-            Utils::updateQtInternalFrameMargins(const_cast<QWindow *>(window), true);
+            Utils::updateFrameMargins(winId, (max || full));
+            // ### FIXME
+            //Utils::updateQtInternalFrameMargins(const_cast<QWindow *>(window), true);
         }
     } break;
     default:
