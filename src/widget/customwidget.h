@@ -23,3 +23,29 @@
  */
 
 #pragma once
+
+#include <customwindow_global.h>
+#include <QtWidgets/qwidget.h>
+
+CUSTOMWINDOW_BEGIN_NAMESPACE
+
+class CUSTOMWINDOW_API CustomWidget : public QWidget
+{
+    Q_OBJECT
+    Q_DISABLE_COPY_MOVE(CustomWidget)
+
+public:
+    explicit CustomWidget(QWidget *parent = nullptr);
+    virtual ~CustomWidget();
+
+protected:
+    void paintEvent(QPaintEvent *event) override;
+    void changeEvent(QEvent *event) override;
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+#else
+    bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+#endif
+};
+
+CUSTOMWINDOW_END_NAMESPACE

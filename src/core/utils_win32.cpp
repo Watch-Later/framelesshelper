@@ -38,6 +38,7 @@
 #else
 #include <QtGui/qpa/qplatformwindow_p.h>
 #endif
+#include <QtGui/qpalette.h>
 
 Q_DECLARE_METATYPE(QMargins)
 
@@ -124,6 +125,62 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
             }
         }
     }
+}
+
+[[nodiscard]] static inline bool __ShouldAppsUseDarkMode()
+{
+    if (!isWin10RS1OrGreater()) {
+        return false;
+    }
+    const auto resultFromRegistry = []() -> bool {
+        const QSettings registry(QString::fromUtf8(Constants::kPersonalizeRegistryKey), QSettings::NativeFormat);
+        bool ok = false;
+        const DWORD value = registry.value(QStringLiteral("AppsUseLightTheme"), 0).toUInt(&ok);
+        return (ok && (value == 0));
+    };
+    // Starting from Windows 10 19H1, ShouldAppsUseDarkMode() always return "TRUE"
+    // (actually, a random non-zero number at runtime), so we can't use it due to
+    // this unreliability. In this case, we just simply read the user's setting from
+    // the registry instead, it's not elegant but at least it works well.
+    if (isWin1019H1OrGreater()) {
+        return resultFromRegistry();
+    } else {
+        static bool tried = false;
+        using ShouldAppsUseDarkModeSig = BOOL(WINAPI *)();
+        static ShouldAppsUseDarkModeSig ShouldAppsUseDarkModeFunc = nullptr;
+        if (!ShouldAppsUseDarkModeFunc) {
+            if (!tried) {
+                tried = true;
+                const HMODULE dll = LoadLibraryExW(L"UxTheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                if (dll) {
+                    ShouldAppsUseDarkModeFunc = reinterpret_cast<ShouldAppsUseDarkModeSig>(GetProcAddress(dll, MAKEINTRESOURCEA(132)));
+                    if (!ShouldAppsUseDarkModeFunc) {
+                        qWarning() << Utils::getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    }
+                } else {
+                    qWarning() << Utils::getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+                }
+            }
+        }
+        if (ShouldAppsUseDarkModeFunc) {
+            return (ShouldAppsUseDarkModeFunc() != FALSE);
+        } else {
+            qWarning() << "ShouldAppsUseDarkMode() is not available.";
+            return resultFromRegistry();
+        }
+    }
+}
+
+[[nodiscard]] static inline bool __IsHighContrastModeEnabled()
+{
+    HIGHCONTRASTW hc;
+    SecureZeroMemory(&hc, sizeof(hc));
+    hc.cbSize = sizeof(hc);
+    if (SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) == FALSE) {
+        qWarning() << Utils::getSystemErrorMessage(QStringLiteral("SystemParametersInfoW"));
+        return false;
+    }
+    return (hc.dwFlags & HCF_HIGHCONTRASTON);
 }
 
 bool Utils::isWin8OrGreater()
@@ -454,50 +511,6 @@ quint32 Utils::getWindowVisibleFrameBorderThickness(const WId winId)
     }
 }
 
-bool Utils::shouldAppsUseDarkMode()
-{
-    if (!isWin10RS1OrGreater()) {
-        return false;
-    }
-    const auto resultFromRegistry = []() -> bool {
-        const QSettings registry(QString::fromUtf8(Constants::kPersonalizeRegistryKey), QSettings::NativeFormat);
-        bool ok = false;
-        const DWORD value = registry.value(QStringLiteral("AppsUseLightTheme"), 0).toUInt(&ok);
-        return (ok && (value == 0));
-    };
-    // Starting from Windows 10 19H1, ShouldAppsUseDarkMode() always return "TRUE"
-    // (actually, a random non-zero number at runtime), so we can't use it due to
-    // this unreliability. In this case, we just simply read the user's setting from
-    // the registry instead, it's not elegant but at least it works well.
-    if (isWin1019H1OrGreater()) {
-        return resultFromRegistry();
-    } else {
-        static bool tried = false;
-        using ShouldAppsUseDarkModeSig = BOOL(WINAPI *)();
-        static ShouldAppsUseDarkModeSig ShouldAppsUseDarkModeFunc = nullptr;
-        if (!ShouldAppsUseDarkModeFunc) {
-            if (!tried) {
-                tried = true;
-                const HMODULE dll = LoadLibraryExW(L"UxTheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                if (dll) {
-                    ShouldAppsUseDarkModeFunc = reinterpret_cast<ShouldAppsUseDarkModeSig>(GetProcAddress(dll, MAKEINTRESOURCEA(132)));
-                    if (!ShouldAppsUseDarkModeFunc) {
-                        qWarning() << getSystemErrorMessage(QStringLiteral("GetProcAddress"));
-                    }
-                } else {
-                    qWarning() << getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
-                }
-            }
-        }
-        if (ShouldAppsUseDarkModeFunc) {
-            return (ShouldAppsUseDarkModeFunc() != FALSE);
-        } else {
-            qWarning() << "ShouldAppsUseDarkMode() is not available.";
-            return resultFromRegistry();
-        }
-    }
-}
-
 ColorizationArea Utils::getColorizationArea()
 {
     if (!isWin10OrGreater()) {
@@ -566,66 +579,6 @@ bool Utils::isSystemMenuRequested(const void *data, QPointF *pos)
         }
     }
     return result;
-}
-
-bool Utils::showSystemMenu(const WId winId, const QPointF &pos)
-{
-    Q_ASSERT(winId);
-    if (!winId) {
-        return false;
-    }
-    const auto hWnd = reinterpret_cast<HWND>(winId);
-    const HMENU menu = GetSystemMenu(hWnd, FALSE);
-    if (!menu) {
-        qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMenu"));
-        return false;
-    }
-    // Update the options based on window state.
-    MENUITEMINFOW mii;
-    SecureZeroMemory(&mii, sizeof(mii));
-    mii.cbSize = sizeof(mii);
-    mii.fMask = MIIM_STATE;
-    mii.fType = MFT_STRING;
-    const auto setState = [&mii, menu](const UINT item, const bool enabled) -> bool {
-        mii.fState = (enabled ? MF_ENABLED : MF_DISABLED);
-        if (SetMenuItemInfoW(menu, item, FALSE, &mii) == FALSE) {
-            qWarning() << getSystemErrorMessage(QStringLiteral("SetMenuItemInfoW"));
-            return false;
-        }
-        return true;
-    };
-    const bool max = isMaximized(winId);
-    if (!setState(SC_RESTORE, max)) {
-        return false;
-    }
-    if (!setState(SC_MOVE, !max)) {
-        return false;
-    }
-    if (!setState(SC_SIZE, !max)) {
-        return false;
-    }
-    if (!setState(SC_MINIMIZE, true)) {
-        return false;
-    }
-    if (!setState(SC_MAXIMIZE, !max)) {
-        return false;
-    }
-    if (!setState(SC_CLOSE, true)) {
-        return false;
-    }
-    if (SetMenuDefaultItem(menu, UINT_MAX, FALSE) == FALSE) {
-        qWarning() << getSystemErrorMessage(QStringLiteral("SetMenuDefaultItem"));
-        return false;
-    }
-    const QPoint roundedPos = pos.toPoint();
-    const auto ret = TrackPopupMenu(menu, TPM_RETURNCMD, roundedPos.x(), roundedPos.y(), 0, hWnd, nullptr);
-    if (ret != 0) {
-        if (PostMessageW(hWnd, WM_SYSCOMMAND, ret, 0) == FALSE) {
-            qWarning() << getSystemErrorMessage(QStringLiteral("PostMessageW"));
-            return false;
-        }
-    }
-    return true;
 }
 #endif
 
@@ -926,6 +879,108 @@ DPIAwareness Utils::getDPIAwarenessForWindow(const WId winId)
     } else {
         return ((IsProcessDPIAware() == FALSE) ? DPIAwareness::Unaware : DPIAwareness::System);
     }
+}
+
+SystemTheme Utils::getSystemTheme()
+{
+    if (__IsHighContrastModeEnabled()) {
+        return SystemTheme::HighContrast;
+    } else if (__ShouldAppsUseDarkMode()) {
+        return SystemTheme::Dark;
+    } else {
+        return SystemTheme::Light;
+    }
+}
+
+QPalette Utils::getStandardPalette(const SystemTheme theme)
+{
+    QPalette palette = {};
+    switch (theme) {
+    case SystemTheme::Light: {
+        // ### TO BE IMPLEMENTED
+    } break;
+    case SystemTheme::Dark: {
+        // ### TO BE IMPLEMENTED
+    } break;
+    case SystemTheme::HighContrast: {
+        // ### TO BE IMPLEMENTED
+    } break;
+    }
+    return palette;
+}
+
+bool Utils::displaySystemMenu(const WId winId, const QPoint &pos)
+{
+    Q_ASSERT(winId);
+    if (!winId) {
+        return false;
+    }
+    const auto hWnd = reinterpret_cast<HWND>(winId);
+    const HMENU menu = GetSystemMenu(hWnd, FALSE);
+    if (!menu) {
+        qWarning() << getSystemErrorMessage(QStringLiteral("GetSystemMenu"));
+        return false;
+    }
+    // Update the options based on window state.
+    MENUITEMINFOW mii;
+    SecureZeroMemory(&mii, sizeof(mii));
+    mii.cbSize = sizeof(mii);
+    mii.fMask = MIIM_STATE;
+    mii.fType = MFT_STRING;
+    const auto setState = [&mii, menu](const UINT item, const bool enabled) -> bool {
+        mii.fState = (enabled ? MF_ENABLED : MF_DISABLED);
+        if (SetMenuItemInfoW(menu, item, FALSE, &mii) == FALSE) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("SetMenuItemInfoW"));
+            return false;
+        }
+        return true;
+    };
+    const bool maxOrFull = (isMaximized(winId) || isFullScreened(winId));
+    if (!setState(SC_RESTORE, maxOrFull)) {
+        return false;
+    }
+    if (!setState(SC_MOVE, !maxOrFull)) {
+        return false;
+    }
+    if (!setState(SC_SIZE, !maxOrFull)) {
+        return false;
+    }
+    if (!setState(SC_MINIMIZE, true)) {
+        return false;
+    }
+    if (!setState(SC_MAXIMIZE, !maxOrFull)) {
+        return false;
+    }
+    if (!setState(SC_CLOSE, true)) {
+        return false;
+    }
+    if (SetMenuDefaultItem(menu, UINT_MAX, FALSE) == FALSE) {
+        qWarning() << getSystemErrorMessage(QStringLiteral("SetMenuDefaultItem"));
+        return false;
+    }
+    QPoint mousePos = {};
+    if (pos.isNull()) {
+        POINT sysPos = {0, 0};
+        if (GetCursorPos(&sysPos) == FALSE) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("GetCursorPos"));
+            return false;
+        }
+        mousePos = {sysPos.x, sysPos.y};
+    } else {
+        mousePos = pos;
+    }
+    UINT flags = TPM_RETURNCMD;
+    if (QGuiApplication::isRightToLeft()) {
+        flags |= TPM_LAYOUTRTL;
+    }
+    const auto ret = TrackPopupMenu(menu, flags, mousePos.x(), mousePos.y(), 0, hWnd, nullptr);
+    if (ret != 0) {
+        if (PostMessageW(hWnd, WM_SYSCOMMAND, ret, 0) == FALSE) {
+            qWarning() << getSystemErrorMessage(QStringLiteral("PostMessageW"));
+            return false;
+        }
+    }
+    return true;
 }
 
 CUSTOMWINDOW_END_NAMESPACE

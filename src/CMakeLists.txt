@@ -1,7 +1,9 @@
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets Quick)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Quick)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Gui Widgets Quick)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Widgets Quick)
 
-add_subdirectory(core)
+if(TARGET Qt${QT_VERSION_MAJOR}::Gui)
+    add_subdirectory(core)
+endif()
 
 if(TARGET Qt${QT_VERSION_MAJOR}::Widgets)
     add_subdirectory(widget)

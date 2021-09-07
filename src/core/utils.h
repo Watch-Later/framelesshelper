@@ -25,6 +25,7 @@
 #pragma once
 
 #include "customwindow_global.h"
+#include <QtCore/qpoint.h>
 #include <QtGui/qwindowdefs.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
@@ -53,6 +54,13 @@ enum class DPIAwareness : int
     PerMonitorV2
 };
 
+enum class SystemTheme : int
+{
+    Light = 0,
+    Dark,
+    HighContrast
+};
+
 namespace Utils
 {
 
@@ -74,9 +82,11 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API bool isWindowNoState(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API QColor getColorizationColor();
 [[nodiscard]] CUSTOMWINDOW_API quint32 getWindowVisibleFrameBorderThickness(const WId winId);
-[[nodiscard]] CUSTOMWINDOW_API bool shouldAppsUseDarkMode();
 [[nodiscard]] CUSTOMWINDOW_API ColorizationArea getColorizationArea();
 [[nodiscard]] CUSTOMWINDOW_API DPIAwareness getDPIAwarenessForWindow(const WId winId);
+[[nodiscard]] CUSTOMWINDOW_API SystemTheme getSystemTheme();
+[[nodiscard]] CUSTOMWINDOW_API QPalette getStandardPalette(const SystemTheme theme);
+[[nodiscard]] CUSTOMWINDOW_API bool displaySystemMenu(const WId winId, const QPoint &pos = {});
 
 } // namespace Utils
 
