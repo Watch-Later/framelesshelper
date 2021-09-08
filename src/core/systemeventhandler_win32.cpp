@@ -67,6 +67,11 @@ void FramelessHelperWin::removeFramelessWindow(QWindow *window)
 }
 #endif
 
+[[nodiscard]] static inline POINT extractMousePosFromLParam(const LPARAM lParam)
+{
+    return {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+}
+
 bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *result)
 {
     Q_ASSERT(!id.isNull());
@@ -92,7 +97,12 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
         // Anyway, we should skip it in this case.
         return false;
     }
-    switch (msg->message) {
+    const HWND hWnd = msg->hwnd;
+    const UINT message = msg->message;
+    const WPARAM wParam = msg->wParam;
+    const LPARAM lParam = msg->lParam;
+    const auto winId = reinterpret_cast<WId>(hWnd);
+    switch (message) {
     case WM_NCCALCSIZE: {
         // Windows是根据这个消息的返回值来设置窗口的客户区（窗口中真正显示的内容）
         // 和非客户区（标题栏、窗口边框、菜单栏和状态栏等Windows系统自行提供的部分
@@ -164,13 +174,12 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
         // preserve the four window borders. So we just remove the whole
         // window frame, otherwise the code will become much more complex.
 
-        if (msg->wParam == FALSE) {
+        if (wParam == FALSE) {
             *result = 0;
             return true;
         }
-        const auto clientRect = &(reinterpret_cast<LPNCCALCSIZE_PARAMS>(msg->lParam)->rgrc[0]);
+        const auto clientRect = &(reinterpret_cast<LPNCCALCSIZE_PARAMS>(lParam)->rgrc[0]);
         bool nonClientAreaExists = false;
-        const auto winId = reinterpret_cast<WId>(msg->hwnd);
         const bool max = Utils::isMaximized(winId);
         const bool full = Utils::isFullScreened(winId);
         // We don't need this correction when we're fullscreen. We will
@@ -211,7 +220,7 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
                     MONITORINFO monitorInfo;
                     SecureZeroMemory(&monitorInfo, sizeof(monitorInfo));
                     monitorInfo.cbSize = sizeof(monitorInfo);
-                    const HMONITOR monitor = MonitorFromWindow(msg->hwnd, MONITOR_DEFAULTTONEAREST);
+                    const HMONITOR monitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
                     if (!monitor) {
                         qWarning() << Utils::getSystemErrorMessage(QStringLiteral("MonitorFromWindow"));
                         break;
@@ -245,7 +254,7 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
                     _abd.cbSize = sizeof(_abd);
                     _abd.hWnd = FindWindowW(L"Shell_TrayWnd", nullptr);
                     if (_abd.hWnd) {
-                        const HMONITOR windowMonitor = MonitorFromWindow(msg->hwnd, MONITOR_DEFAULTTONEAREST);
+                        const HMONITOR windowMonitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
                         if (!windowMonitor) {
                             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("MonitorFromWindow"));
                             break;
@@ -329,7 +338,7 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
     case WM_NCUAHDRAWFRAME: {
         *result = 0;
         return true;
-    }
+    } break;
     case WM_NCPAINT: {
         // 边框阴影处于非客户区的范围，因此如果直接阻止非客户区的绘制，会导致边框阴影丢失
 
@@ -349,16 +358,16 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
             // https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-ncactivate
             // Don't use "*result = 0" otherwise the window won't respond
             // to the window active state change.
-            *result = DefWindowProcW(msg->hwnd, WM_NCACTIVATE, msg->wParam, -1);
+            *result = DefWindowProcW(hWnd, WM_NCACTIVATE, wParam, -1);
         } else {
-            if (msg->wParam == FALSE) {
+            if (wParam == FALSE) {
                 *result = TRUE;
             } else {
                 *result = FALSE;
             }
         }
         return true;
-    }
+    } break;
     case WM_NCHITTEST: {
         // 原生Win32窗口只有顶边是在窗口内部resize的，其余三边都是在窗口
         // 外部进行resize的，其原理是，WS_THICKFRAME这个窗口样式会在窗
@@ -425,19 +434,18 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
         // another branch, if you are interested in it, you can give it a
         // try.
 
-        const POINT screenPos = {GET_X_LPARAM(msg->lParam), GET_Y_LPARAM(msg->lParam)};
+        const POINT screenPos = extractMousePosFromLParam(lParam);
         POINT windowPos = screenPos;
-        if (ScreenToClient(msg->hwnd, &windowPos) == FALSE) {
+        if (ScreenToClient(hWnd, &windowPos) == FALSE) {
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("ScreenToClient"));
             break;
         }
         RECT clientRect = {0, 0, 0, 0};
-        if (GetClientRect(msg->hwnd, &clientRect) == FALSE) {
+        if (GetClientRect(hWnd, &clientRect) == FALSE) {
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("GetClientRect"));
             break;
         }
         const LONG windowWidth = clientRect.right;
-        const auto winId = reinterpret_cast<WId>(msg->hwnd);
         const quint32 dpi = Utils::getDPIForWindow(winId);
         const qreal dpr = (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI));
         const quint32 resizeBorderThickness_user = Settings::get(id, QString::fromUtf8(Constants::kResizeBorderThicknessFlag), 0).toUInt();
@@ -514,17 +522,16 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
     case WM_SETTEXT: {
         // Disable painting while these messages are handled to prevent them
         // from drawing a window caption over the client area.
-        const LONG_PTR oldStyle = GetWindowLongPtrW(msg->hwnd, GWL_STYLE);
+        const LONG_PTR oldStyle = GetWindowLongPtrW(hWnd, GWL_STYLE);
         // Prevent Windows from drawing the default title bar by temporarily
         // toggling the WS_VISIBLE style.
-        if (SetWindowLongPtrW(msg->hwnd, GWL_STYLE, static_cast<LONG_PTR>(oldStyle & ~WS_VISIBLE)) == 0) {
+        if (SetWindowLongPtrW(hWnd, GWL_STYLE, static_cast<LONG_PTR>(oldStyle & ~WS_VISIBLE)) == 0) {
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("SetWindowLongPtrW"));
             break;
         }
-        const auto winId = reinterpret_cast<WId>(msg->hwnd);
         Utils::triggerFrameChange(winId);
-        const LRESULT ret = DefWindowProcW(msg->hwnd, msg->message, msg->wParam, msg->lParam);
-        if (SetWindowLongPtrW(msg->hwnd, GWL_STYLE, oldStyle) == 0) {
+        const LRESULT ret = DefWindowProcW(hWnd, message, wParam, lParam);
+        if (SetWindowLongPtrW(hWnd, GWL_STYLE, oldStyle) == 0) {
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("SetWindowLongPtrW"));
             break;
         }
@@ -533,14 +540,35 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
         return true;
     } break;
     case WM_SIZE: {
-        const auto winId = reinterpret_cast<WId>(msg->hwnd);
-        const bool normal = (msg->wParam == SIZE_RESTORED);
-        const bool max = (msg->wParam == SIZE_MAXIMIZED);
+        const bool normal = (wParam == SIZE_RESTORED);
+        const bool max = (wParam == SIZE_MAXIMIZED);
         const bool full = Utils::isFullScreened(winId);
         if (normal || max || full) {
             Utils::updateFrameMargins(winId, (max || full));
             // ### FIXME
             //Utils::updateQtInternalFrameMargins(const_cast<QWindow *>(window), true);
+        }
+    } break;
+    case WM_NCRBUTTONUP: {
+        if (wParam == HTCAPTION) {
+            const POINT pos = extractMousePosFromLParam(lParam);
+            if (Utils::displaySystemMenu(winId, QPoint(pos.x, pos.y))) {
+                *result = 0;
+                return true;
+            } else {
+                qWarning() << "Failed to display the system menu.";
+            }
+        }
+    } break;
+    case WM_SYSCOMMAND: {
+        const WPARAM filteredWParam = (wParam & 0xFFF0);
+        if ((filteredWParam == SC_KEYMENU) && (lParam == VK_SPACE)) {
+            if (Utils::displaySystemMenu(winId, QPoint())) {
+                *result = 0;
+                return true;
+            } else {
+                qWarning() << "Failed to display the system menu.";
+            }
         }
     } break;
     default:

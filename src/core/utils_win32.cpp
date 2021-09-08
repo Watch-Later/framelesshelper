@@ -541,44 +541,16 @@ bool Utils::isThemeChanged(const void *data)
         return false;
     }
     const auto msg = static_cast<const MSG *>(data);
-    if (msg->message == WM_THEMECHANGED) {
+    if (message == WM_THEMECHANGED) {
         return true;
-    } else if (msg->message == WM_DWMCOLORIZATIONCOLORCHANGED) {
+    } else if (message == WM_DWMCOLORIZATIONCOLORCHANGED) {
         return true;
-    } else if (msg->message == WM_SETTINGCHANGE) {
-        if ((msg->wParam == 0) && (_wcsicmp(reinterpret_cast<LPCWSTR>(msg->lParam), L"ImmersiveColorSet") == 0)) {
+    } else if (message == WM_SETTINGCHANGE) {
+        if ((wParam == 0) && (_wcsicmp(reinterpret_cast<LPCWSTR>(lParam), L"ImmersiveColorSet") == 0)) {
             return true;
         }
     }
     return false;
-}
-
-bool Utils::isSystemMenuRequested(const void *data, QPointF *pos)
-{
-    Q_ASSERT(data);
-    if (!data) {
-        return false;
-    }
-    bool result = false;
-    const auto msg = static_cast<const MSG *>(data);
-    if (msg->message == WM_NCRBUTTONUP) {
-        if (msg->wParam == HTCAPTION) {
-            result = true;
-        }
-    } else if (msg->message == WM_SYSCOMMAND) {
-        const WPARAM filteredWParam = (msg->wParam & 0xFFF0);
-        if ((filteredWParam == SC_KEYMENU) && (msg->lParam == VK_SPACE)) {
-            result = true;
-        }
-    } else if (msg->message == WM_CONTEXTMENU) {
-        //
-    }
-    if (result) {
-        if (pos) {
-            *pos = extractMousePositionFromLParam(msg->lParam);
-        }
-    }
-    return result;
 }
 #endif
 
@@ -958,22 +930,22 @@ bool Utils::displaySystemMenu(const WId winId, const QPoint &pos)
         qWarning() << getSystemErrorMessage(QStringLiteral("SetMenuDefaultItem"));
         return false;
     }
-    QPoint mousePos = {};
+    POINT mousePos = {0, 0};
     if (pos.isNull()) {
-        POINT sysPos = {0, 0};
-        if (GetCursorPos(&sysPos) == FALSE) {
+        POINT cursorPos = {0, 0};
+        if (GetCursorPos(&cursorPos) == FALSE) {
             qWarning() << getSystemErrorMessage(QStringLiteral("GetCursorPos"));
             return false;
         }
-        mousePos = {sysPos.x, sysPos.y};
+        mousePos = cursorPos;
     } else {
-        mousePos = pos;
+        mousePos = {pos.x(), pos.y()};
     }
     UINT flags = TPM_RETURNCMD;
     if (QGuiApplication::isRightToLeft()) {
         flags |= TPM_LAYOUTRTL;
     }
-    const auto ret = TrackPopupMenu(menu, flags, mousePos.x(), mousePos.y(), 0, hWnd, nullptr);
+    const auto ret = TrackPopupMenu(menu, flags, mousePos.x, mousePos.y, 0, hWnd, nullptr);
     if (ret != 0) {
         if (PostMessageW(hWnd, WM_SYSCOMMAND, ret, 0) == FALSE) {
             qWarning() << getSystemErrorMessage(QStringLiteral("PostMessageW"));

@@ -45,9 +45,10 @@ QUuid Core::Settings::create(const QVariantHash &initialValue)
         options.insert(QString::fromUtf8(Constants::kFrameBorderVisibleFlag), true); // bool
         options.insert(QString::fromUtf8(Constants::kFrameBorderThicknessFlag), 0); // quint32
         options.insert(QString::fromUtf8(Constants::kFrameBorderColorFlag), {}); // QColor
-        options.insert(QString::fromUtf8(Constants::kWindowIconVisibleFlag), false); // bool
-        options.insert(QString::fromUtf8(Constants::kWindowIconFlag), {}); // QIcon
-        options.insert(QString::fromUtf8(Constants::kWindowTitleAlignmentFlag), {}); // Qt::Alignment
+        options.insert(QString::fromUtf8(Constants::kTitleBarVisibleFlag), false); // bool
+        options.insert(QString::fromUtf8(Constants::kTitleBarIconVisibleFlag), false); // bool
+        options.insert(QString::fromUtf8(Constants::kTitleBarIconFlag), {}); // QIcon
+        options.insert(QString::fromUtf8(Constants::kTitleBarTextAlignmentFlag), {}); // Qt::Alignment
         options.insert(QString::fromUtf8(Constants::kTitleBarBackgroundColorFlag), {}); // QColor
         options.insert(QString::fromUtf8(Constants::kWindowHandleFlag), {}); // QWidget*, QWindow* or QQuickWindow*
     } else {

@@ -33,10 +33,44 @@ class CUSTOMWINDOW_API CustomWidget : public QWidget
 {
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(CustomWidget)
+    Q_PROPERTY(bool customFrameEnabled READ customFrameEnabled WRITE setCustomFrameEnabled NOTIFY customFrameEnabledChanged)
+    Q_PROPERTY(quint32 resizeBorderThickness READ resizeBorderThickness WRITE setResizeBorderThickness NOTIFY resizeBorderThicknessChanged)
+    Q_PROPERTY(quint32 captionHeight READ captionHeight WRITE setCaptionHeight NOTIFY captionHeightChanged)
+    Q_PROPERTY(quint32 titleBarHeight READ titleBarHeight WRITE setTitleBarHeight NOTIFY titleBarHeightChanged)
+    Q_PROPERTY(QObjectList hitTestVisibleInChrome READ hitTestVisibleInChrome WRITE setHitTestVisibleInChrome NOTIFY hitTestVisibleInChromeChanged)
+    Q_PROPERTY(bool resizable READ resizable WRITE setResizable NOTIFY resizableChanged)
+    Q_PROPERTY(bool autoDetectHighContrast READ autoDetectHighContrast WRITE setAutoDetectHighContrast NOTIFY autoDetectHighContrastChanged)
+    Q_PROPERTY(bool autoDetectColorScheme READ autoDetectColorScheme WRITE setAutoDetectColorScheme NOTIFY autoDetectColorSchemeChanged)
+    Q_PROPERTY(bool frameBorderVisible READ frameBorderVisible WRITE setFrameBorderVisible NOTIFY frameBorderVisibleChanged)
+    Q_PROPERTY(quint32 frameBorderThickness READ frameBorderThickness WRITE setFrameBorderThickness NOTIFY frameBorderThicknessChanged)
+    Q_PROPERTY(QColor frameBorderColor READ frameBorderColor WRITE setFrameBorderColor NOTIFY frameBorderColorChanged)
+    Q_PROPERTY(bool titleBarVisible READ titleBarVisible WRITE setTitleBarVisible NOTIFY titleBarVisibleChanged)
+    Q_PROPERTY(bool titleBarIconVisible READ titleBarIconVisible WRITE setTitleBarIconVisible NOTIFY titleBarIconVisibleChanged)
+    Q_PROPERTY(QIcon titleBarIcon READ titleBarIcon WRITE setTitleBarIcon NOTIFY titleBarIconChanged)
+    Q_PROPERTY(Qt::Alignment titleBarTextAlignment READ titleBarTextAlignment WRITE setTitleBarTextAlignment NOTIFY titleBarTextAlignmentChanged)
+    Q_PROPERTY(QColor titleBarBackgroundColor READ titleBarBackgroundColor WRITE setTitleBarBackgroundColor NOTIFY titleBarBackgroundColorChanged)
 
 public:
     explicit CustomWidget(QWidget *parent = nullptr);
     virtual ~CustomWidget();
+
+Q_SIGNALS:
+    void customFrameEnabledChanged(bool);
+    void resizeBorderThicknessChanged(quint32);
+    void captionHeightChanged(quint32);
+    void titleBarHeightChanged(quint32);
+    void hitTestVisibleInChromeChanged(const QObjectList &);
+    void resizableChanged(bool);
+    void autoDetectHighContrastChanged(bool);
+    void autoDetectColorSchemeChanged(bool);
+    void frameBorderVisibleChanged(bool);
+    void frameBorderThicknessChanged(quint32);
+    void frameBorderColorChanged(const QColor &);
+    void titleBarVisibleChanged(bool);
+    void titleBarIconVisibleChanged(bool);
+    void titleBarIconChanged(const QIcon &);
+    void titleBarTextAlignmentChanged(Qt::Alignment);
+    void titleBarBackgroundColorChanged(const QColor &);
 
 protected:
     void paintEvent(QPaintEvent *event) override;

@@ -99,9 +99,10 @@ namespace Constants
 [[maybe_unused]] constexpr char kFrameBorderVisibleFlag[] = "__CUSTOMWINDOW_FRAME_BORDER_VISIBLE";
 [[maybe_unused]] constexpr char kFrameBorderThicknessFlag[] = "__CUSTOMWINDOW_FRAME_BORDER_THICKNESS";
 [[maybe_unused]] constexpr char kFrameBorderColorFlag[] = "__CUSTOMWINDOW_FRAME_BORDER_COLOR";
-[[maybe_unused]] constexpr char kWindowIconVisibleFlag[] = "__CUSTOMWINDOW_WINDOW_ICON_VISIBLE";
-[[maybe_unused]] constexpr char kWindowIconFlag[] = "__CUSTOMWINDOW_WINDOW_ICON";
-[[maybe_unused]] constexpr char kWindowTitleAlignmentFlag[] = "__CUSTOMWINDOW_WINDOW_TITLE_ALIGNMENT";
+[[maybe_unused]] constexpr char kTitleBarVisibleFlag[] = "__CUSTOMWINDOW_TITLE_BAR_VISIBLE";
+[[maybe_unused]] constexpr char kTitleBarIconVisibleFlag[] = "__CUSTOMWINDOW_TITLE_BAR_ICON_VISIBLE";
+[[maybe_unused]] constexpr char kTitleBarIconFlag[] = "__CUSTOMWINDOW_TITLE_BAR_ICON";
+[[maybe_unused]] constexpr char kTitleBarTextAlignmentFlag[] = "__CUSTOMWINDOW_TITLE_BAR_TEXT_ALIGNMENT";
 [[maybe_unused]] constexpr char kTitleBarBackgroundColorFlag[] = "__CUSTOMWINDOW_TITLE_BAR_BACKGROUND_COLOR";
 [[maybe_unused]] constexpr char kWindowHandleFlag[] = "__CUSTOMWINDOW_WINDOW_HANDLE";
 

@@ -3,8 +3,8 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 
 set(SOURCES
     customwidget.h
-    customtitlebar.h
-    customtitlebar.cpp
+    customtitlebarwidget.h
+    customtitlebarwidget.cpp
 )
 
 if(WIN32)

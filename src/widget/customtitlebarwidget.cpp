@@ -22,4 +22,4 @@
  * SOFTWARE.
  */
 
-#include "customtitlebar.h"
+#include "customtitlebarwidget.h"
