@@ -23,3 +23,82 @@
  */
 
 #pragma once
+
+#include <customwindow_global.h>
+#include <QtCore/qobject.h>
+#include <QtCore/quuid.h>
+
+QT_BEGIN_NAMESPACE
+QT_FORWARD_DECLARE_CLASS(QIcon)
+QT_FORWARD_DECLARE_CLASS(QColor)
+QT_FORWARD_DECLARE_CLASS(QWidget)
+QT_END_NAMESPACE
+
+CUSTOMWINDOW_BEGIN_NAMESPACE
+
+class CustomWidget;
+
+class CustomWidgetPrivate
+{
+    Q_DISABLE_COPY_MOVE(CustomWidgetPrivate)
+
+public:
+    explicit CustomWidgetPrivate(CustomWidget *q);
+    ~CustomWidgetPrivate();
+
+    void initialize();
+
+    [[nodiscard]] bool customFrameEnabled() const;
+    void setCustomFrameEnabled(const bool value);
+
+    [[nodiscard]] quint32 resizeBorderThickness() const;
+    void setResizeBorderThickness(const quint32 value);
+
+    [[nodiscard]] quint32 captionHeight() const;
+    void setCaptionHeight(const quint32 value);
+
+    [[nodiscard]] quint32 titleBarHeight() const;
+    void setTitleBarHeight(const quint32 value);
+
+    [[nodiscard]] QObjectList hitTestVisibleObjects() const;
+    void setHitTestVisible(QWidget *object, const bool visible);
+
+    [[nodiscard]] bool resizable() const;
+    void setResizable(const bool value);
+
+    [[nodiscard]] bool autoDetectHighContrast() const;
+    void setAutoDetectHighContrast(const bool value);
+
+    [[nodiscard]] bool autoDetectColorScheme() const;
+    void setAutoDetectColorScheme(const bool value);
+
+    [[nodiscard]] bool frameBorderVisible() const;
+    void setFrameBorderVisible(const bool value);
+
+    [[nodiscard]] quint32 frameBorderThickness() const;
+    void setFrameBorderThickness(const quint32 value);
+
+    [[nodiscard]] QColor frameBorderColor() const;
+    void setFrameBorderColor(const QColor &value);
+
+    [[nodiscard]] bool titleBarVisible() const;
+    void setTitleBarVisible(const bool value);
+
+    [[nodiscard]] bool titleBarIconVisible() const;
+    void setTitleBarIconVisible(const bool value);
+
+    [[nodiscard]] QIcon titleBarIcon() const;
+    void setTitleBarIcon(const QIcon &value);
+
+    [[nodiscard]] Qt::Alignment titleBarTextAlignment() const;
+    void setTitleBarTextAlignment(const Qt::Alignment value);
+
+    [[nodiscard]] QColor titleBarBackgroundColor() const;
+    void setTitleBarBackgroundColor(const QColor &value);
+
+private:
+    CustomWidget *q_ptr = nullptr;
+    QUuid m_id = {};
+};
+
+CUSTOMWINDOW_END_NAMESPACE
