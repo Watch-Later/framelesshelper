@@ -24,6 +24,8 @@
 
 #include "settings.h"
 #include <QtCore/qdebug.h>
+#include <QtCore/quuid.h>
+#include <QtCore/qvariant.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
@@ -38,7 +40,7 @@ QUuid Core::Settings::create(const QVariantHash &initialValue)
         options.insert(QString::fromUtf8(Constants::kResizeBorderThicknessFlag), 0); // quint32
         options.insert(QString::fromUtf8(Constants::kCaptionHeightFlag), 0); // quint32
         options.insert(QString::fromUtf8(Constants::kTitleBarHeightFlag), 0); // quint32
-        options.insert(QString::fromUtf8(Constants::kHitTestVisibleInChromeFlag), {}); // QObjectList
+        options.insert(QString::fromUtf8(Constants::kHitTestVisibleObjectsFlag), {}); // QObjectList
         options.insert(QString::fromUtf8(Constants::kWindowResizableFlag), true); // bool
         options.insert(QString::fromUtf8(Constants::kAutoDetectHighContrastFlag), true); // bool
         options.insert(QString::fromUtf8(Constants::kAutoDetectColorSchemeFlag), true); // bool

@@ -22,4 +22,38 @@
  * SOFTWARE.
  */
 
-#include "customwidget.h"
+#include "draw.h"
+#include <QtCore/qdebug.h>
+#include <QtCore/quuid.h>
+#include <QtGui/qpainter.h>
+
+static inline void initCoreResource()
+{
+    Q_INIT_RESOURCE(core);
+}
+
+CUSTOMWINDOW_BEGIN_NAMESPACE
+
+bool Core::Draw::customWindowFrame(const QUuid &id, QPainter *painter)
+{
+    Q_ASSERT(!id.isNull());
+    Q_ASSERT(painter);
+    if (id.isNull() || !painter) {
+        return false;
+    }
+    initCoreResource();
+    return true;
+}
+
+bool Core::Draw::customTitleBar(const QUuid &id, QPainter *painter)
+{
+    Q_ASSERT(!id.isNull());
+    Q_ASSERT(painter);
+    if (id.isNull() || !painter) {
+        return false;
+    }
+    initCoreResource();
+    return true;
+}
+
+CUSTOMWINDOW_END_NAMESPACE

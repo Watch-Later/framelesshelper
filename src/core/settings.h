@@ -25,16 +25,18 @@
 #pragma once
 
 #include "customwindow_global.h"
-#include <QtCore/quuid.h>
-#include <QtCore/qvariant.h>
+
+QT_BEGIN_NAMESPACE
+QT_FORWARD_DECLARE_CLASS(QUuid)
+QT_END_NAMESPACE
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
 namespace Core::Settings
 {
 
-[[nodiscard]] CUSTOMWINDOW_API QUuid create(const QVariantHash &initialValue = {});
-[[nodiscard]] CUSTOMWINDOW_API QVariant get(const QUuid &id, const QString &name, const QVariant &defaultValue = {});
+[[nodiscard]] CUSTOMWINDOW_API QUuid create(const QVariantHash &initialValue);
+[[nodiscard]] CUSTOMWINDOW_API QVariant get(const QUuid &id, const QString &name, const QVariant &defaultValue);
 [[nodiscard]] CUSTOMWINDOW_API bool set(const QUuid &id, const QString &name, const QVariant &value);
 
 } // namespace Core::Settings

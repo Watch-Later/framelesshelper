@@ -3,25 +3,26 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 
 set(SOURCES
     customwidget.h
+    customwidget.cpp
     customtitlebarwidget.h
     customtitlebarwidget.cpp
 )
 
 if(WIN32)
     list(APPEND SOURCES
-        customwidget_win32.cpp
+        customwidget_p_win32.h
     )
 endif()
 
 if(LINUX)
     list(APPEND SOURCES
-        customwidget_x11.cpp
+        customwidget_p_x11.h
     )
 endif()
 
 if(DARWIN)
     list(APPEND SOURCES
-        customwidget_darwin.cpp
+        customwidget_p_darwin.h
     )
 endif()
 

@@ -22,21 +22,36 @@
  * SOFTWARE.
  */
 
-#pragma once
-
-#include "customwindow_global.h"
-
-QT_BEGIN_NAMESPACE
-QT_FORWARD_DECLARE_CLASS(QUuid)
-QT_END_NAMESPACE
+#include "customwidget.h"
+#include <QtCore/qdebug.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-namespace Core
+CustomWidget::CustomWidget(QWidget *parent) : QWidget(parent)
+{
+}
+
+CustomWidget::~CustomWidget()
+{
+}
+
+void CustomWidget::paintEvent(QPaintEvent *event)
+{
+    QWidget::paintEvent(event);
+}
+
+void CustomWidget::changeEvent(QEvent *event)
+{
+    QWidget::changeEvent(event);
+}
+
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+bool CustomWidget::nativeEvent(const QByteArray &eventType, void *message, qintptr *result)
+#else
+bool CustomWidget::nativeEvent(const QByteArray &eventType, void *message, long *result)
+#endif
 {
 
-[[nodiscard]] CUSTOMWINDOW_API bool systemEventHandler(const QUuid &id, const void *event, qintptr *result);
-
-} // namespace Core
+}
 
 CUSTOMWINDOW_END_NAMESPACE

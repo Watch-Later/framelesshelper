@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/">
+        <file>assets/common/qt-logo.svg</file>
+        <file>assets/dark/close.svg</file>
+        <file>assets/dark/maximize.svg</file>
+        <file>assets/dark/minimize.svg</file>
+        <file>assets/dark/restore.svg</file>
+        <file>assets/highcontrast/TODO</file>
+        <file>assets/light/close.svg</file>
+        <file>assets/light/maximize.svg</file>
+        <file>assets/light/minimize.svg</file>
+        <file>assets/light/restore.svg</file>
+    </qresource>
+</RCC>

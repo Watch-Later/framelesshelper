@@ -29,6 +29,8 @@
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
+class CustomWidgetPrivate;
+
 class CUSTOMWINDOW_API CustomWidget : public QWidget
 {
     Q_OBJECT
@@ -37,7 +39,7 @@ class CUSTOMWINDOW_API CustomWidget : public QWidget
     Q_PROPERTY(quint32 resizeBorderThickness READ resizeBorderThickness WRITE setResizeBorderThickness NOTIFY resizeBorderThicknessChanged)
     Q_PROPERTY(quint32 captionHeight READ captionHeight WRITE setCaptionHeight NOTIFY captionHeightChanged)
     Q_PROPERTY(quint32 titleBarHeight READ titleBarHeight WRITE setTitleBarHeight NOTIFY titleBarHeightChanged)
-    Q_PROPERTY(QObjectList hitTestVisibleInChrome READ hitTestVisibleInChrome WRITE setHitTestVisibleInChrome NOTIFY hitTestVisibleInChromeChanged)
+    Q_PROPERTY(QObjectList hitTestVisibleObjects READ hitTestVisibleObjects WRITE setHitTestVisibleObjects NOTIFY hitTestVisibleObjectsChanged)
     Q_PROPERTY(bool resizable READ resizable WRITE setResizable NOTIFY resizableChanged)
     Q_PROPERTY(bool autoDetectHighContrast READ autoDetectHighContrast WRITE setAutoDetectHighContrast NOTIFY autoDetectHighContrastChanged)
     Q_PROPERTY(bool autoDetectColorScheme READ autoDetectColorScheme WRITE setAutoDetectColorScheme NOTIFY autoDetectColorSchemeChanged)
@@ -54,23 +56,71 @@ public:
     explicit CustomWidget(QWidget *parent = nullptr);
     virtual ~CustomWidget();
 
+    Q_NODISCARD bool customFrameEnabled() const;
+    void setCustomFrameEnabled(const bool value);
+
+    Q_NODISCARD quint32 resizeBorderThickness() const;
+    void setResizeBorderThickness(const quint32 value);
+
+    Q_NODISCARD quint32 captionHeight() const;
+    void setCaptionHeight(const quint32 value);
+
+    Q_NODISCARD quint32 titleBarHeight() const;
+    void setTitleBarHeight(const quint32 value);
+
+    Q_NODISCARD QObjectList hitTestVisibleObjects() const;
+    void setHitTestVisible(QWidget *object, const bool visible);
+
+    Q_NODISCARD bool resizable() const;
+    void setResizable(const bool value);
+
+    Q_NODISCARD bool autoDetectHighContrast() const;
+    void setAutoDetectHighContrast(const bool value);
+
+    Q_NODISCARD bool autoDetectColorScheme() const;
+    void setAutoDetectColorScheme(const bool value);
+
+    Q_NODISCARD bool frameBorderVisible() const;
+    void setFrameBorderVisible(const bool value);
+
+    Q_NODISCARD quint32 frameBorderThickness() const;
+    void setFrameBorderThickness(const quint32 value);
+
+    Q_NODISCARD QColor frameBorderColor() const;
+    void setFrameBorderColor(const QColor &value);
+
+    Q_NODISCARD bool titleBarVisible() const;
+    void setTitleBarVisible(const bool value);
+
+    Q_NODISCARD bool titleBarIconVisible() const;
+    void setTitleBarIconVisible(const bool value);
+
+    Q_NODISCARD QIcon titleBarIcon() const;
+    void setTitleBarIcon(const QIcon &value);
+
+    Q_NODISCARD Qt::Alignment titleBarTextAlignment() const;
+    void setTitleBarTextAlignment(const Qt::Alignment value);
+
+    Q_NODISCARD QColor titleBarBackgroundColor() const;
+    void setTitleBarBackgroundColor(const QColor &value);
+
 Q_SIGNALS:
     void customFrameEnabledChanged(bool);
     void resizeBorderThicknessChanged(quint32);
     void captionHeightChanged(quint32);
     void titleBarHeightChanged(quint32);
-    void hitTestVisibleInChromeChanged(const QObjectList &);
+    void hitTestVisibleObjectsChanged(QObjectList);
     void resizableChanged(bool);
     void autoDetectHighContrastChanged(bool);
     void autoDetectColorSchemeChanged(bool);
     void frameBorderVisibleChanged(bool);
     void frameBorderThicknessChanged(quint32);
-    void frameBorderColorChanged(const QColor &);
+    void frameBorderColorChanged(QColor);
     void titleBarVisibleChanged(bool);
     void titleBarIconVisibleChanged(bool);
-    void titleBarIconChanged(const QIcon &);
+    void titleBarIconChanged(QIcon);
     void titleBarTextAlignmentChanged(Qt::Alignment);
-    void titleBarBackgroundColorChanged(const QColor &);
+    void titleBarBackgroundColorChanged(QColor);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -80,6 +130,9 @@ protected:
 #else
     bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
 #endif
+
+private:
+    QScopedPointer<CustomWidgetPrivate> d_ptr;
 };
 
 CUSTOMWINDOW_END_NAMESPACE

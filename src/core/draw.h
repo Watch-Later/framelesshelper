@@ -22,4 +22,23 @@
  * SOFTWARE.
  */
 
-#include "customwidget.h"
+#pragma once
+
+#include "customwindow_global.h"
+
+QT_BEGIN_NAMESPACE
+QT_FORWARD_DECLARE_CLASS(QUuid)
+QT_FORWARD_DECLARE_CLASS(QPainter)
+QT_END_NAMESPACE
+
+CUSTOMWINDOW_BEGIN_NAMESPACE
+
+namespace Core::Draw
+{
+
+[[nodiscard]] bool customWindowFrame(const QUuid &id, QPainter *painter);
+[[nodiscard]] bool customTitleBar(const QUuid &id, QPainter *painter);
+
+} // namespace Core::Draw
+
+CUSTOMWINDOW_END_NAMESPACE

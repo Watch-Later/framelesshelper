@@ -27,6 +27,8 @@
 #include "settings.h"
 #include "core_windows.h"
 #include <QtCore/qdebug.h>
+#include <QtCore/quuid.h>
+#include <QtCore/qvariant.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 

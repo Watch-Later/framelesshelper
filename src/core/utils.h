@@ -25,7 +25,6 @@
 #pragma once
 
 #include "customwindow_global.h"
-#include <QtCore/qpoint.h>
 #include <QtGui/qwindowdefs.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
@@ -86,7 +85,7 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API DPIAwareness getDPIAwarenessForWindow(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API SystemTheme getSystemTheme();
 [[nodiscard]] CUSTOMWINDOW_API QPalette getStandardPalette(const SystemTheme theme);
-[[nodiscard]] CUSTOMWINDOW_API bool displaySystemMenu(const WId winId, const QPoint &pos = {});
+[[nodiscard]] CUSTOMWINDOW_API bool displaySystemMenu(const WId winId, const QPoint &pos);
 
 } // namespace Utils
 

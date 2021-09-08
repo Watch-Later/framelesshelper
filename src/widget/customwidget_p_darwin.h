@@ -22,37 +22,4 @@
  * SOFTWARE.
  */
 
-#include "customwidget.h"
-#include <QtCore/qdebug.h>
-#include <QtGui/qpainter.h>
-
-CUSTOMWINDOW_BEGIN_NAMESPACE
-
-CustomWidget::CustomWidget(QWidget *parent) : QWidget(parent)
-{
-}
-
-CustomWidget::~CustomWidget()
-{
-}
-
-void CustomWidget::paintEvent(QPaintEvent *event)
-{
-    QWidget::paintEvent(event);
-}
-
-void CustomWidget::changeEvent(QEvent *event)
-{
-    QWidget::changeEvent(event);
-}
-
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-bool CustomWidget::nativeEvent(const QByteArray &eventType, void *message, qintptr *result)
-#else
-bool CustomWidget::nativeEvent(const QByteArray &eventType, void *message, long *result)
-#endif
-{
-
-}
-
-CUSTOMWINDOW_END_NAMESPACE
+#pragma once

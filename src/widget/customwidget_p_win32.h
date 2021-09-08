@@ -23,20 +23,3 @@
  */
 
 #pragma once
-
-#include "customwindow_global.h"
-
-QT_BEGIN_NAMESPACE
-QT_FORWARD_DECLARE_CLASS(QUuid)
-QT_END_NAMESPACE
-
-CUSTOMWINDOW_BEGIN_NAMESPACE
-
-namespace Core
-{
-
-[[nodiscard]] CUSTOMWINDOW_API bool systemEventHandler(const QUuid &id, const void *event, qintptr *result);
-
-} // namespace Core
-
-CUSTOMWINDOW_END_NAMESPACE
