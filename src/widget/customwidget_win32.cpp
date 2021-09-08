@@ -22,24 +22,4 @@
  * SOFTWARE.
  */
 
-#pragma once
-
-#include <customwindow_global.h>
-
-CUSTOMWINDOW_BEGIN_NAMESPACE
-
-class CustomWidget;
-
-class CustomWidgetPrivate
-{
-    Q_DISABLE_COPY_MOVE(CustomWidgetPrivate)
-
-public:
-    explicit CustomWidgetPrivate(CustomWidget *q);
-    ~CustomWidgetPrivate();
-
-private:
-    CustomWidget *q_ptr = nullptr;
-};
-
-CUSTOMWINDOW_END_NAMESPACE
+#include "customwidget_p.h"

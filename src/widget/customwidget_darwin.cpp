@@ -22,4 +22,4 @@
  * SOFTWARE.
  */
 
-#pragma once
+#include "customwidget_p.h"

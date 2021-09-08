@@ -25,6 +25,7 @@
 #pragma once
 
 #include <customwindow_global.h>
+#include <QtGui/qicon.h>
 #include <QtWidgets/qwidget.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
@@ -39,7 +40,7 @@ class CUSTOMWINDOW_API CustomWidget : public QWidget
     Q_PROPERTY(quint32 resizeBorderThickness READ resizeBorderThickness WRITE setResizeBorderThickness NOTIFY resizeBorderThicknessChanged)
     Q_PROPERTY(quint32 captionHeight READ captionHeight WRITE setCaptionHeight NOTIFY captionHeightChanged)
     Q_PROPERTY(quint32 titleBarHeight READ titleBarHeight WRITE setTitleBarHeight NOTIFY titleBarHeightChanged)
-    Q_PROPERTY(QObjectList hitTestVisibleObjects READ hitTestVisibleObjects WRITE setHitTestVisibleObjects NOTIFY hitTestVisibleObjectsChanged)
+    //Q_PROPERTY(QObjectList hitTestVisibleObjects READ hitTestVisibleObjects WRITE setHitTestVisibleObjects NOTIFY hitTestVisibleObjectsChanged)
     Q_PROPERTY(bool resizable READ resizable WRITE setResizable NOTIFY resizableChanged)
     Q_PROPERTY(bool autoDetectHighContrast READ autoDetectHighContrast WRITE setAutoDetectHighContrast NOTIFY autoDetectHighContrastChanged)
     Q_PROPERTY(bool autoDetectColorScheme READ autoDetectColorScheme WRITE setAutoDetectColorScheme NOTIFY autoDetectColorSchemeChanged)
