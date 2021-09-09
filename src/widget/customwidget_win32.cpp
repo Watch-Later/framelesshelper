@@ -23,3 +23,11 @@
  */
 
 #include "customwidget_p.h"
+
+CUSTOMWINDOW_BEGIN_NAMESPACE
+
+void CustomWidgetPrivate::setResizable(const bool value)
+{
+}
+
+CUSTOMWINDOW_END_NAMESPACE

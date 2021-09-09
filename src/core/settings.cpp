@@ -53,13 +53,14 @@ QUuid Core::Settings::create(const QVariantHash &initialValue)
         options.insert(QString::fromUtf8(Constants::kFrameBorderVisibleFlag), true); // bool
         options.insert(QString::fromUtf8(Constants::kFrameBorderThicknessFlag), 0); // quint32
         options.insert(QString::fromUtf8(Constants::kFrameBorderColorFlag), {}); // QColor
-        options.insert(QString::fromUtf8(Constants::kTitleBarVisibleFlag), false); // bool
-        options.insert(QString::fromUtf8(Constants::kTitleBarIconVisibleFlag), false); // bool
+        options.insert(QString::fromUtf8(Constants::kTitleBarVisibleFlag), true); // bool
+        options.insert(QString::fromUtf8(Constants::kTitleBarIconVisibleFlag), true); // bool
         options.insert(QString::fromUtf8(Constants::kTitleBarIconFlag), {}); // QIcon
         options.insert(QString::fromUtf8(Constants::kTitleBarTextAlignmentFlag), {}); // Qt::Alignment
         options.insert(QString::fromUtf8(Constants::kTitleBarBackgroundColorFlag), {}); // QColor
         options.insert(QString::fromUtf8(Constants::kWidgetHandleFlag), {}); // QWidget*
         options.insert(QString::fromUtf8(Constants::kWindowHandleFlag), {}); // QWindow* or QQuickWindow*
+        options.insert(QString::fromUtf8(Constants::kWinIdFlag), {}); // WId
     } else {
         options = initialValue;
     }

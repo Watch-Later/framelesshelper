@@ -37,7 +37,8 @@ enum class SystemMetric : int
 {
     ResizeBorderThickness = 0,
     CaptionHeight,
-    TitleBarHeight
+    TitleBarHeight,
+    FrameBorderThickness
 };
 
 enum class ColorizationArea : int
@@ -89,7 +90,10 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API SystemTheme getSystemTheme();
 [[nodiscard]] CUSTOMWINDOW_API QPalette getStandardPalette(const SystemTheme theme);
 [[nodiscard]] CUSTOMWINDOW_API bool displaySystemMenu(const WId winId, const QPoint &pos);
-[[nodiscard]] CUSTOMWINDOW_API quint32 getPreferredSystemMetric(const QUuid &id, const WId winId, const SystemMetric metric, const bool dpiScale);
+[[nodiscard]] CUSTOMWINDOW_API quint32 getPreferredSystemMetric(const QUuid &id, const SystemMetric metric, const bool dpiScale);
+[[nodiscard]] CUSTOMWINDOW_API bool isWindowResizable(const QUuid &id);
+[[nodiscard]] CUSTOMWINDOW_API bool setWindowResizable(const WId winId, const bool resizable);
+[[nodiscard]] CUSTOMWINDOW_API QColor getFrameBorderColor(const QUuid &id);
 
 } // namespace Utils
 

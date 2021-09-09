@@ -106,6 +106,7 @@ namespace Constants
 [[maybe_unused]] constexpr char kTitleBarBackgroundColorFlag[] = "__CUSTOMWINDOW_TITLE_BAR_BACKGROUND_COLOR";
 [[maybe_unused]] constexpr char kWidgetHandleFlag[] = "__CUSTOMWINDOW_WIDGET_HANDLE";
 [[maybe_unused]] constexpr char kWindowHandleFlag[] = "__CUSTOMWINDOW_WINDOW_HANDLE";
+[[maybe_unused]] constexpr char kWinIdFlag[] = "__CUSTOMWINDOW_WINID";
 
 } // namespace Constants
 

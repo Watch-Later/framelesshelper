@@ -325,6 +325,10 @@ quint32 Utils::getSystemMetric(const WId winId, const SystemMetric metric, const
         const quint32 resizeBorderThickness = getSystemMetric(winId, SystemMetric::ResizeBorderThickness, dpiScale);
         return ((isMaximized(winId) || isFullScreened(winId)) ? captionHeight : (captionHeight + resizeBorderThickness));
     }
+    case SystemMetric::FrameBorderThickness: {
+        const quint32 borderThickness = getWindowVisibleFrameBorderThickness(winId);
+        return (dpiScale ? qRound(static_cast<qreal>(borderThickness) * dpr) : borderThickness);
+    }
     }
     return 0;
 }
@@ -957,15 +961,19 @@ bool Utils::displaySystemMenu(const WId winId, const QPoint &pos)
     return true;
 }
 
-quint32 Utils::getPreferredSystemMetric(const QUuid &id, const WId winId, const SystemMetric metric, const bool dpiScale)
+quint32 Utils::getPreferredSystemMetric(const QUuid &id, const SystemMetric metric, const bool dpiScale)
 {
     Q_ASSERT(!id.isNull());
-    Q_ASSERT(winId);
-    if (id.isNull() || !winId) {
+    if (id.isNull()) {
         return 0;
     }
-    const quint32 dpi = Utils::getDPIForWindow(winId);
-    const qreal dpr = (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI));
+    const auto winId = qvariant_cast<WId>(Core::Settings::get(id, QString::fromUtf8(Constants::kWinIdFlag), 0));
+    Q_ASSERT(winId);
+    if (!winId) {
+        return 0;
+    }
+    const quint32 dpi = (dpiScale ? getDPIForWindow(winId) : USER_DEFAULT_SCREEN_DPI);
+    const qreal dpr = (dpiScale ? (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI)) : 1.0);
     quint32 userValue = 0;
     switch (metric) {
     case SystemMetric::ResizeBorderThickness: {
@@ -977,12 +985,27 @@ quint32 Utils::getPreferredSystemMetric(const QUuid &id, const WId winId, const 
     case SystemMetric::TitleBarHeight: {
         userValue = Core::Settings::get(id, QString::fromUtf8(Constants::kTitleBarHeightFlag), 0).toUInt();
     }
+    case SystemMetric::FrameBorderThickness: {
+        userValue = Core::Settings::get(id, QString::fromUtf8(Constants::kFrameBorderThicknessFlag), 0).toUInt();
+    }
     }
     if (userValue > 0) {
         return (dpiScale ? qRound(static_cast<qreal>(userValue) * dpr) : userValue);
     } else {
         return getSystemMetric(winId, metric, dpiScale);
     }
+}
+
+bool Utils::isWindowResizable(const QUuid &id)
+{
+}
+
+bool Utils::setWindowResizable(const WId winId, const bool resizable)
+{
+}
+
+QColor Utils::getFrameBorderColor(const QUuid &id)
+{
 }
 
 CUSTOMWINDOW_END_NAMESPACE

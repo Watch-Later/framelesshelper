@@ -5,8 +5,6 @@ set(SOURCES
     customwidget.h
     customwidget_p.h
     customwidget.cpp
-    customtitlebarwidget.h
-    customtitlebarwidget.cpp
 )
 
 if(WIN32)

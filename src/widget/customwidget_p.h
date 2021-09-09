@@ -26,6 +26,8 @@
 
 #include <customwindow_global.h>
 #include <QtCore/quuid.h>
+#include <QtGui/qwindowdefs.h>
+#include <QtGui/qpalette.h>
 
 QT_BEGIN_NAMESPACE
 QT_FORWARD_DECLARE_CLASS(QIcon)
@@ -95,9 +97,17 @@ public:
     void setTitleBarBackgroundColor(const QColor &value);
 
 private:
+    void emitAllSignals();
+    void updateContentsMargins();
+
+private:
     CustomWidget *q_ptr = nullptr;
     bool m_initialized = false;
     QUuid m_id = {};
+    WId m_winId = reinterpret_cast<WId>(nullptr);
+    QWindow *m_window = nullptr;
+    bool m_autoFillBackground = false;
+    QPalette m_palette = {};
 };
 
 CUSTOMWINDOW_END_NAMESPACE
