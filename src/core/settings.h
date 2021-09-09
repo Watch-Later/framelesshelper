@@ -25,7 +25,7 @@
 #pragma once
 
 #include "customwindow_global.h"
-#include <QtCore/qvariant.h>
+#include <QtCore/qcontainerfwd.h>
 
 QT_BEGIN_NAMESPACE
 QT_FORWARD_DECLARE_CLASS(QUuid)

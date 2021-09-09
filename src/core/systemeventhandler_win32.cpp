@@ -29,6 +29,7 @@
 #include <QtCore/qdebug.h>
 #include <QtCore/quuid.h>
 #include <QtCore/qvariant.h>
+#include <QtCore/qpoint.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
@@ -69,9 +70,59 @@ void FramelessHelperWin::removeFramelessWindow(QWindow *window)
 }
 #endif
 
-[[nodiscard]] static inline POINT extractMousePosFromLParam(const LPARAM lParam)
+[[nodiscard]] static inline POINT __ExtractMousePosFromLParam(const LPARAM lParam)
 {
     return {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+}
+
+[[nodiscard]] static inline bool __EnableNonClientAreaRendering(const HWND hWnd)
+{
+    Q_ASSERT(hWnd);
+    if (!hWnd) {
+        return false;
+    }
+    static bool tried = false;
+    using DwmSetWindowAttributeSig = decltype(&::DwmSetWindowAttribute);
+    static DwmSetWindowAttributeSig DwmSetWindowAttributeFunc = nullptr;
+    if (!DwmSetWindowAttributeFunc) {
+        if (!tried) {
+            tried = true;
+            const HMODULE dll = LoadLibraryExW(L"DwmApi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+            if (dll) {
+                DwmSetWindowAttributeFunc = reinterpret_cast<DwmSetWindowAttributeSig>(GetProcAddress(dll, "DwmSetWindowAttribute"));
+                if (!DwmSetWindowAttributeFunc) {
+                    qWarning() << Utils::getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                }
+            } else {
+                qWarning() << Utils::getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+            }
+        }
+    }
+    if (DwmSetWindowAttributeFunc) {
+        const DWMNCRENDERINGPOLICY ncrp = DWMNCRP_ENABLED;
+        const HRESULT hr = DwmSetWindowAttributeFunc(hWnd, DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
+        if (FAILED(hr)) {
+            Utils::getSystemErrorMessage(QStringLiteral("DwmSetWindowAttributeFunc"), hr);
+            return false;
+        }
+        return true;
+    } else {
+        qWarning() << "DwmSetWindowAttribute() is not available.";
+        // ### TODO: modify registry directly
+        return false;
+    }
+}
+
+[[nodiscard]] static inline bool __UpdateQtInternalFrameMargins(const QUuid &id)
+{
+    const QVariant windowVar = Core::Settings::get(id, QString::fromUtf8(Constants::kWindowHandleFlag), {});
+    if (windowVar.isValid()) {
+        const auto window = qvariant_cast<QWindow *>(windowVar);
+        if (window) {
+            return Utils::updateQtInternalFrameMargins(window, true);
+        }
+    }
+    return false;
 }
 
 bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *result)
@@ -436,7 +487,7 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
         // another branch, if you are interested in it, you can give it a
         // try.
 
-        const POINT screenPos = extractMousePosFromLParam(lParam);
+        const POINT screenPos = __ExtractMousePosFromLParam(lParam);
         POINT windowPos = screenPos;
         if (ScreenToClient(hWnd, &windowPos) == FALSE) {
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("ScreenToClient"));
@@ -448,14 +499,8 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
             break;
         }
         const LONG windowWidth = clientRect.right;
-        const quint32 dpi = Utils::getDPIForWindow(winId);
-        const qreal dpr = (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI));
-        const quint32 resizeBorderThickness_user = Settings::get(id, QString::fromUtf8(Constants::kResizeBorderThicknessFlag), 0).toUInt();
-        const quint32 titleBarHeight_user = Settings::get(id, QString::fromUtf8(Constants::kTitleBarHeightFlag), 0).toUInt();
-        const quint32 resizeBorderThickness_sys = Utils::getSystemMetric(winId, SystemMetric::ResizeBorderThickness, true);
-        const quint32 titleBarHeight_sys = Utils::getSystemMetric(winId, SystemMetric::TitleBarHeight, true);
-        const quint32 resizeBorderThickness = ((resizeBorderThickness_user > 0) ? qRound(static_cast<qreal>(resizeBorderThickness_user) * dpr) : resizeBorderThickness_sys);
-        const quint32 titleBarHeight = ((titleBarHeight_user > 0) ? qRound(static_cast<qreal>(titleBarHeight_user) * dpr) : titleBarHeight_sys);
+        const quint32 resizeBorderThickness = Utils::getPreferredSystemMetric(id, winId, SystemMetric::ResizeBorderThickness, true);
+        const quint32 titleBarHeight = Utils::getPreferredSystemMetric(id, winId, SystemMetric::TitleBarHeight, true);
         const bool max = Utils::isMaximized(winId);
         const bool full = Utils::isFullScreened(winId);
         bool isTitleBar = false;
@@ -531,29 +576,37 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("SetWindowLongPtrW"));
             break;
         }
-        Utils::triggerFrameChange(winId);
+        if (!Utils::triggerFrameChange(winId)) {
+            qWarning() << "Failed to trigger a frame change event.";
+        }
         const LRESULT ret = DefWindowProcW(hWnd, message, wParam, lParam);
         if (SetWindowLongPtrW(hWnd, GWL_STYLE, oldStyle) == 0) {
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("SetWindowLongPtrW"));
             break;
         }
-        Utils::triggerFrameChange(winId);
+        if (!Utils::triggerFrameChange(winId)) {
+            qWarning() << "Failed to trigger a frame change event.";
+        }
         *result = ret;
         return true;
     } break;
     case WM_SIZE: {
+        const bool min = (wParam == SIZE_MINIMIZED);
         const bool normal = (wParam == SIZE_RESTORED);
         const bool max = (wParam == SIZE_MAXIMIZED);
         const bool full = Utils::isFullScreened(winId);
-        if (normal || max || full) {
-            Utils::updateFrameMargins(winId, (max || full));
-            // ### FIXME
-            //Utils::updateQtInternalFrameMargins(const_cast<QWindow *>(window), true);
+        if (min || normal || max || full) {
+            if (!Utils::updateFrameMargins(winId, (max || full))) {
+                qWarning() << "Failed to update window frame margins.";
+            }
+            if (!__UpdateQtInternalFrameMargins(id)) {
+                qWarning() << "Failed to update Qt's internal window frame margins.";
+            }
         }
     } break;
     case WM_NCRBUTTONUP: {
         if (wParam == HTCAPTION) {
-            const POINT pos = extractMousePosFromLParam(lParam);
+            const POINT pos = __ExtractMousePosFromLParam(lParam);
             if (Utils::displaySystemMenu(winId, QPoint(pos.x, pos.y))) {
                 *result = 0;
                 return true;
@@ -565,12 +618,32 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
     case WM_SYSCOMMAND: {
         const WPARAM filteredWParam = (wParam & 0xFFF0);
         if ((filteredWParam == SC_KEYMENU) && (lParam == VK_SPACE)) {
-            if (Utils::displaySystemMenu(winId, QPoint())) {
+            const quint32 borderThickness = Utils::getWindowVisibleFrameBorderThickness(winId);
+            const quint32 titleBarHeight = Utils::getPreferredSystemMetric(id, winId, SystemMetric::TitleBarHeight, true);
+            if (Utils::displaySystemMenu(winId, QPoint(borderThickness, titleBarHeight))) {
                 *result = 0;
                 return true;
             } else {
                 qWarning() << "Failed to display the system menu.";
             }
+        }
+    } break;
+    case WM_DWMCOMPOSITIONCHANGED: {
+        if (Utils::isCompositionEnabled()) {
+            if (__EnableNonClientAreaRendering(hWnd)) {
+                const bool max = Utils::isMaximized(winId);
+                const bool full = Utils::isFullScreened(winId);
+                if (!Utils::updateFrameMargins(winId, (max || full))) {
+                    qWarning() << "Failed to update window frame margins.";
+                }
+                if (!__UpdateQtInternalFrameMargins(id)) {
+                    qWarning() << "Failed to update Qt's internal window frame margins.";
+                }
+            } else {
+                qWarning() << "Failed to enable non-client area rendering.";
+            }
+        } else {
+            qWarning() << "DWM composition is disabled. The window may paint incorrectly.";
         }
     } break;
     default:

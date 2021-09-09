@@ -24,15 +24,22 @@
 
 #include "settings.h"
 #include <QtCore/qdebug.h>
+#include <QtCore/qmutex.h>
+#include <QtCore/qvariant.h>
 #include <QtCore/quuid.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-static QHash<QUuid, QVariantHash> globalOptionList = {};
+struct SettingsData
+{
+    QMutex mutex = {};
+    QHash<QUuid, QVariantHash> optionList = {};
+};
+
+Q_GLOBAL_STATIC(SettingsData, globalData)
 
 QUuid Core::Settings::create(const QVariantHash &initialValue)
 {
-    const QUuid id = QUuid::createUuid();
     QVariantHash options = {};
     if (initialValue.isEmpty()) {
         options.insert(QString::fromUtf8(Constants::kCustomWindowFrameFlag), false); // bool
@@ -51,11 +58,14 @@ QUuid Core::Settings::create(const QVariantHash &initialValue)
         options.insert(QString::fromUtf8(Constants::kTitleBarIconFlag), {}); // QIcon
         options.insert(QString::fromUtf8(Constants::kTitleBarTextAlignmentFlag), {}); // Qt::Alignment
         options.insert(QString::fromUtf8(Constants::kTitleBarBackgroundColorFlag), {}); // QColor
-        options.insert(QString::fromUtf8(Constants::kWindowHandleFlag), {}); // QWidget*, QWindow* or QQuickWindow*
+        options.insert(QString::fromUtf8(Constants::kWidgetHandleFlag), {}); // QWidget*
+        options.insert(QString::fromUtf8(Constants::kWindowHandleFlag), {}); // QWindow* or QQuickWindow*
     } else {
         options = initialValue;
     }
-    globalOptionList.insert(id, options);
+    const QUuid id = QUuid::createUuid();
+    QMutexLocker locker(&globalData()->mutex);
+    globalData()->optionList.insert(id, options);
     return id;
 }
 
@@ -66,13 +76,14 @@ QVariant Core::Settings::get(const QUuid &id, const QString &name, const QVarian
     if (id.isNull() || name.isEmpty()) {
         return defaultValue;
     }
-    if (globalOptionList.isEmpty()) {
+    QMutexLocker locker(&globalData()->mutex);
+    if (globalData()->optionList.isEmpty()) {
         return defaultValue;
     }
-    if (!globalOptionList.contains(id)) {
+    if (!globalData()->optionList.contains(id)) {
         return defaultValue;
     }
-    const QVariantHash options = globalOptionList.value(id);
+    const QVariantHash options = globalData()->optionList.value(id);
     if (options.isEmpty()) {
         return defaultValue;
     }
@@ -87,18 +98,19 @@ bool Core::Settings::set(const QUuid &id, const QString &name, const QVariant &v
     if (id.isNull() || name.isEmpty() || !value.isValid()) {
         return false;
     }
-    if (globalOptionList.isEmpty()) {
+    QMutexLocker locker(&globalData()->mutex);
+    if (globalData()->optionList.isEmpty()) {
         return false;
     }
-    if (!globalOptionList.contains(id)) {
+    if (!globalData()->optionList.contains(id)) {
         return false;
     }
-    QVariantHash options = globalOptionList.take(id);
+    QVariantHash options = globalData()->optionList.take(id);
     if (options.contains(name)) {
         options.remove(name);
     }
     options.insert(name, value);
-    globalOptionList.insert(id, options);
+    globalData()->optionList.insert(id, options);
     return true;
 }
 

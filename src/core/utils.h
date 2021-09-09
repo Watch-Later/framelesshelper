@@ -27,6 +27,10 @@
 #include "customwindow_global.h"
 #include <QtGui/qwindowdefs.h>
 
+QT_BEGIN_NAMESPACE
+QT_FORWARD_DECLARE_CLASS(QUuid)
+QT_END_NAMESPACE
+
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
 enum class SystemMetric : int
@@ -72,7 +76,6 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API bool triggerFrameChange(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API bool updateFrameMargins(const WId winId, const bool reset);
 [[nodiscard]] CUSTOMWINDOW_API bool updateQtInternalFrameMargins(QWindow *window, const bool enable);
-[[nodiscard]] CUSTOMWINDOW_API QString getSystemErrorMessage(const QString &function, const HRESULT hr);
 [[nodiscard]] CUSTOMWINDOW_API QString getSystemErrorMessage(const QString &function);
 [[nodiscard]] CUSTOMWINDOW_API quint32 getDPIForWindow(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API bool isMinimized(const WId winId);
@@ -86,6 +89,7 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API SystemTheme getSystemTheme();
 [[nodiscard]] CUSTOMWINDOW_API QPalette getStandardPalette(const SystemTheme theme);
 [[nodiscard]] CUSTOMWINDOW_API bool displaySystemMenu(const WId winId, const QPoint &pos);
+[[nodiscard]] CUSTOMWINDOW_API quint32 getPreferredSystemMetric(const QUuid &id, const WId winId, const SystemMetric metric, const bool dpiScale);
 
 } // namespace Utils
 

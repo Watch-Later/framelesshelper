@@ -104,6 +104,7 @@ namespace Constants
 [[maybe_unused]] constexpr char kTitleBarIconFlag[] = "__CUSTOMWINDOW_TITLE_BAR_ICON";
 [[maybe_unused]] constexpr char kTitleBarTextAlignmentFlag[] = "__CUSTOMWINDOW_TITLE_BAR_TEXT_ALIGNMENT";
 [[maybe_unused]] constexpr char kTitleBarBackgroundColorFlag[] = "__CUSTOMWINDOW_TITLE_BAR_BACKGROUND_COLOR";
+[[maybe_unused]] constexpr char kWidgetHandleFlag[] = "__CUSTOMWINDOW_WIDGET_HANDLE";
 [[maybe_unused]] constexpr char kWindowHandleFlag[] = "__CUSTOMWINDOW_WINDOW_HANDLE";
 
 } // namespace Constants

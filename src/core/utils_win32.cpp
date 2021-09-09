@@ -24,7 +24,9 @@
 
 #include "utils.h"
 #include "core_windows.h"
+#include "settings.h"
 #include <QtCore/qdebug.h>
+#include <QtCore/quuid.h>
 #include <QtCore/qsettings.h>
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
 #include <QtCore/qoperatingsystemversion.h>
@@ -44,7 +46,7 @@ Q_DECLARE_METATYPE(QMargins)
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-[[nodiscard]] static inline bool isWin10RS1OrGreater()
+[[nodiscard]] static inline bool __IsWin10RS1OrGreater()
 {
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
     static const bool result = (QOperatingSystemVersion::current() >= QOperatingSystemVersion(QOperatingSystemVersion::Windows, 10, 0, 14393));
@@ -54,7 +56,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     return result;
 }
 
-[[nodiscard]] static inline bool isWin1019H1OrGreater()
+[[nodiscard]] static inline bool __IsWin1019H1OrGreater()
 {
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
     static const bool result = (QOperatingSystemVersion::current() >= QOperatingSystemVersion(QOperatingSystemVersion::Windows, 10, 0, 18362));
@@ -62,6 +64,27 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     static const bool result = (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS10);
 #endif
     return result;
+}
+
+[[nodiscard]] static inline QString __GetSystemErrorMessage(const QString &function, const HRESULT hr)
+{
+    Q_ASSERT(!function.isEmpty());
+    if (function.isEmpty()) {
+        return {};
+    }
+    if (SUCCEEDED(hr)) {
+        return QStringLiteral("Operation succeeded.");
+    }
+    const DWORD dwError = HRESULT_CODE(hr);
+    LPWSTR buf = nullptr;
+    if (FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                       nullptr, dwError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 0, nullptr) == 0) {
+        return QStringLiteral("Failed to retrieve the error message from system.");
+    }
+    const QString message = QStringLiteral("%1 failed with error %2: %3.")
+                                .arg(function, QString::number(dwError), QString::fromWCharArray(buf));
+    LocalFree(buf);
+    return message;
 }
 
 [[nodiscard]] static inline quint32 __GetSystemMetricsForDpi(const int nIndex, const quint32 dpi)
@@ -73,7 +96,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     static bool tried = false;
     using GetSystemMetricsForDpiSig = decltype(&::GetSystemMetricsForDpi);
     static GetSystemMetricsForDpiSig GetSystemMetricsForDpiFunc = nullptr;
-    if (isWin10RS1OrGreater()) {
+    if (__IsWin10RS1OrGreater()) {
         if (!GetSystemMetricsForDpiFunc) {
             if (!tried) {
                 tried = true;
@@ -129,7 +152,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
 
 [[nodiscard]] static inline bool __ShouldAppsUseDarkMode()
 {
-    if (!isWin10RS1OrGreater()) {
+    if (!__IsWin10RS1OrGreater()) {
         return false;
     }
     const auto resultFromRegistry = []() -> bool {
@@ -142,7 +165,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     // (actually, a random non-zero number at runtime), so we can't use it due to
     // this unreliability. In this case, we just simply read the user's setting from
     // the registry instead, it's not elegant but at least it works well.
-    if (isWin1019H1OrGreater()) {
+    if (__IsWin1019H1OrGreater()) {
         return resultFromRegistry();
     } else {
         static bool tried = false;
@@ -249,7 +272,7 @@ bool Utils::isCompositionEnabled()
         if (SUCCEEDED(hr)) {
             return (enabled != FALSE);
         } else {
-            qWarning() << getSystemErrorMessage(QStringLiteral("DwmIsCompositionEnabled"), hr);
+            qWarning() << __GetSystemErrorMessage(QStringLiteral("DwmIsCompositionEnabled"), hr);
         }
     } else {
         qWarning() << "DwmIsCompositionEnabled() is not available.";
@@ -353,7 +376,7 @@ bool Utils::updateFrameMargins(const WId winId, const bool reset)
         const MARGINS margins = {margin, margin, margin, margin};
         const HRESULT hr = DwmExtendFrameIntoClientAreaFunc(reinterpret_cast<HWND>(winId), &margins);
         if (FAILED(hr)) {
-            qWarning() << getSystemErrorMessage(QStringLiteral("DwmExtendFrameIntoClientArea"), hr);
+            qWarning() << __GetSystemErrorMessage(QStringLiteral("DwmExtendFrameIntoClientArea"), hr);
             return false;
         }
         return true;
@@ -395,27 +418,6 @@ bool Utils::updateQtInternalFrameMargins(QWindow *window, const bool enable)
     return true;
 }
 
-QString Utils::getSystemErrorMessage(const QString &function, const HRESULT hr)
-{
-    Q_ASSERT(!function.isEmpty());
-    if (function.isEmpty()) {
-        return {};
-    }
-    if (SUCCEEDED(hr)) {
-        return QStringLiteral("Operation succeeded.");
-    }
-    const DWORD dwError = HRESULT_CODE(hr);
-    LPWSTR buf = nullptr;
-    if (FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                       nullptr, dwError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 0, nullptr) == 0) {
-        return QStringLiteral("Failed to retrieve the error message from system.");
-    }
-    const QString message = QStringLiteral("%1 failed with error %2: %3.")
-                             .arg(function, QString::number(dwError), QString::fromWCharArray(buf));
-    LocalFree(buf);
-    return message;
-}
-
 QString Utils::getSystemErrorMessage(const QString &function)
 {
     Q_ASSERT(!function.isEmpty());
@@ -426,7 +428,7 @@ QString Utils::getSystemErrorMessage(const QString &function)
     if (dwError == ERROR_SUCCESS) {
         return QStringLiteral("Operation succeeded.");
     }
-    return getSystemErrorMessage(function, HRESULT_FROM_WIN32(dwError));
+    return __GetSystemErrorMessage(function, HRESULT_FROM_WIN32(dwError));
 }
 
 QColor Utils::getColorizationColor()
@@ -453,7 +455,7 @@ QColor Utils::getColorizationColor()
         BOOL opaque = FALSE;
         const HRESULT hr = DwmGetColorizationColorFunc(&color, &opaque);
         if (FAILED(hr)) {
-            qWarning() << getSystemErrorMessage(QStringLiteral("DwmGetColorizationColor"), hr);
+            qWarning() << __GetSystemErrorMessage(QStringLiteral("DwmGetColorizationColor"), hr);
             const QSettings registry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
             bool ok = false;
             color = registry.value(QStringLiteral("ColorizationColor"), 0).toUInt(&ok);
@@ -565,7 +567,7 @@ quint32 Utils::getDPIForWindow(const WId winId)
     static GetDpiForSystemSig GetDpiForSystemFunc = nullptr;
     using GetDpiForMonitorSig = decltype(&::GetDpiForMonitor);
     static GetDpiForMonitorSig GetDpiForMonitorFunc = nullptr;
-    if (isWin10RS1OrGreater()) {
+    if (__IsWin10RS1OrGreater()) {
         if (!GetDpiForWindowFunc || !GetSystemDpiForProcessFunc || !GetDpiForSystemFunc) {
             if (!tried) {
                 tried = true;
@@ -622,7 +624,7 @@ quint32 Utils::getDPIForWindow(const WId winId)
         UINT dpiY = 0;
         const HRESULT hr = GetDpiForMonitorFunc(screen, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
         if (FAILED(hr)) {
-            qWarning() << getSystemErrorMessage(QStringLiteral("GetDpiForMonitor"), hr);
+            qWarning() << __GetSystemErrorMessage(QStringLiteral("GetDpiForMonitor"), hr);
             return USER_DEFAULT_SCREEN_DPI;
         }
         return qRound(static_cast<qreal>(dpiX + dpiY) / 2.0);
@@ -664,7 +666,7 @@ quint32 Utils::getDPIForWindow(const WId winId)
         UINT dpiY = 0;
         const HRESULT hr = GetDpiForMonitorFunc(screen, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
         if (FAILED(hr)) {
-            qWarning() << getSystemErrorMessage(QStringLiteral("GetDpiForMonitor"), hr);
+            qWarning() << __GetSystemErrorMessage(QStringLiteral("GetDpiForMonitor"), hr);
             return USER_DEFAULT_SCREEN_DPI;
         }
         return qRound(static_cast<qreal>(dpiX + dpiY) / 2.0);
@@ -772,7 +774,7 @@ DPIAwareness Utils::getDPIAwarenessForWindow(const WId winId)
     static GetAwarenessFromDpiAwarenessContextSig GetAwarenessFromDpiAwarenessContextFunc = nullptr;
     using GetProcessDpiAwarenessSig = decltype(&::GetProcessDpiAwareness);
     static GetProcessDpiAwarenessSig GetProcessDpiAwarenessFunc = nullptr;
-    if (isWin10RS1OrGreater()) {
+    if (__IsWin10RS1OrGreater()) {
         if (!GetWindowDpiAwarenessContextFunc || !GetThreadDpiAwarenessContextFunc || !GetAwarenessFromDpiAwarenessContextFunc) {
             if (!tried) {
                 tried = true;
@@ -845,7 +847,7 @@ DPIAwareness Utils::getDPIAwarenessForWindow(const WId winId)
         if (SUCCEEDED(hr)) {
             return static_cast<DPIAwareness>(awareness);
         } else {
-            qWarning() << getSystemErrorMessage(QStringLiteral("GetProcessDpiAwareness"), hr);
+            qWarning() << __GetSystemErrorMessage(QStringLiteral("GetProcessDpiAwareness"), hr);
             return DPIAwareness::Invalid;
         }
     } else {
@@ -953,6 +955,34 @@ bool Utils::displaySystemMenu(const WId winId, const QPoint &pos)
         }
     }
     return true;
+}
+
+quint32 Utils::getPreferredSystemMetric(const QUuid &id, const WId winId, const SystemMetric metric, const bool dpiScale)
+{
+    Q_ASSERT(!id.isNull());
+    Q_ASSERT(winId);
+    if (id.isNull() || !winId) {
+        return 0;
+    }
+    const quint32 dpi = Utils::getDPIForWindow(winId);
+    const qreal dpr = (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI));
+    quint32 userValue = 0;
+    switch (metric) {
+    case SystemMetric::ResizeBorderThickness: {
+        userValue = Core::Settings::get(id, QString::fromUtf8(Constants::kResizeBorderThicknessFlag), 0).toUInt();
+    }
+    case SystemMetric::CaptionHeight: {
+        userValue = Core::Settings::get(id, QString::fromUtf8(Constants::kCaptionHeightFlag), 0).toUInt();
+    }
+    case SystemMetric::TitleBarHeight: {
+        userValue = Core::Settings::get(id, QString::fromUtf8(Constants::kTitleBarHeightFlag), 0).toUInt();
+    }
+    }
+    if (userValue > 0) {
+        return (dpiScale ? qRound(static_cast<qreal>(userValue) * dpr) : userValue);
+    } else {
+        return getSystemMetric(winId, metric, dpiScale);
+    }
 }
 
 CUSTOMWINDOW_END_NAMESPACE
