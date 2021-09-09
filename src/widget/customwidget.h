@@ -25,7 +25,6 @@
 #pragma once
 
 #include <customwindow_global.h>
-#include <QtGui/qicon.h>
 #include <QtWidgets/qwidget.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
@@ -35,12 +34,12 @@ class CustomWidgetPrivate;
 class CUSTOMWINDOW_API CustomWidget : public QWidget
 {
     Q_OBJECT
+    Q_DECLARE_PRIVATE(CustomWidget)
     Q_DISABLE_COPY_MOVE(CustomWidget)
     Q_PROPERTY(bool customFrameEnabled READ customFrameEnabled WRITE setCustomFrameEnabled NOTIFY customFrameEnabledChanged)
     Q_PROPERTY(quint32 resizeBorderThickness READ resizeBorderThickness WRITE setResizeBorderThickness NOTIFY resizeBorderThicknessChanged)
     Q_PROPERTY(quint32 captionHeight READ captionHeight WRITE setCaptionHeight NOTIFY captionHeightChanged)
     Q_PROPERTY(quint32 titleBarHeight READ titleBarHeight WRITE setTitleBarHeight NOTIFY titleBarHeightChanged)
-    //Q_PROPERTY(QObjectList hitTestVisibleObjects READ hitTestVisibleObjects WRITE setHitTestVisibleObjects NOTIFY hitTestVisibleObjectsChanged)
     Q_PROPERTY(bool resizable READ resizable WRITE setResizable NOTIFY resizableChanged)
     Q_PROPERTY(bool autoDetectHighContrast READ autoDetectHighContrast WRITE setAutoDetectHighContrast NOTIFY autoDetectHighContrastChanged)
     Q_PROPERTY(bool autoDetectColorScheme READ autoDetectColorScheme WRITE setAutoDetectColorScheme NOTIFY autoDetectColorSchemeChanged)
@@ -68,9 +67,6 @@ public:
 
     Q_NODISCARD quint32 titleBarHeight() const;
     void setTitleBarHeight(const quint32 value);
-
-    Q_NODISCARD QObjectList hitTestVisibleObjects() const;
-    void setHitTestVisible(QWidget *object, const bool visible);
 
     Q_NODISCARD bool resizable() const;
     void setResizable(const bool value);
@@ -105,12 +101,13 @@ public:
     Q_NODISCARD QColor titleBarBackgroundColor() const;
     void setTitleBarBackgroundColor(const QColor &value);
 
+    Q_INVOKABLE void setHitTestVisible(QWidget *object, const bool visible);
+
 Q_SIGNALS:
     void customFrameEnabledChanged(bool);
     void resizeBorderThicknessChanged(quint32);
     void captionHeightChanged(quint32);
     void titleBarHeightChanged(quint32);
-    void hitTestVisibleObjectsChanged(QObjectList);
     void resizableChanged(bool);
     void autoDetectHighContrastChanged(bool);
     void autoDetectColorSchemeChanged(bool);

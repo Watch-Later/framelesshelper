@@ -108,7 +108,6 @@ void FramelessHelperWin::removeFramelessWindow(QWindow *window)
         return true;
     } else {
         qWarning() << "DwmSetWindowAttribute() is not available.";
-        // ### TODO: modify registry directly
         return false;
     }
 }

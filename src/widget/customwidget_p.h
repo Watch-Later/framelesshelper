@@ -25,7 +25,6 @@
 #pragma once
 
 #include <customwindow_global.h>
-#include <QtCore/qobject.h>
 #include <QtCore/quuid.h>
 
 QT_BEGIN_NAMESPACE
@@ -40,6 +39,7 @@ class CustomWidget;
 
 class CustomWidgetPrivate
 {
+    Q_DECLARE_PUBLIC(CustomWidget)
     Q_DISABLE_COPY_MOVE(CustomWidgetPrivate)
 
 public:
@@ -47,6 +47,7 @@ public:
     ~CustomWidgetPrivate();
 
     void initialize();
+    void uninitialize();
 
     [[nodiscard]] bool customFrameEnabled() const;
     void setCustomFrameEnabled(const bool value);
@@ -59,9 +60,6 @@ public:
 
     [[nodiscard]] quint32 titleBarHeight() const;
     void setTitleBarHeight(const quint32 value);
-
-    [[nodiscard]] QObjectList hitTestVisibleObjects() const;
-    void setHitTestVisible(QWidget *object, const bool visible);
 
     [[nodiscard]] bool resizable() const;
     void setResizable(const bool value);
@@ -98,6 +96,7 @@ public:
 
 private:
     CustomWidget *q_ptr = nullptr;
+    bool m_initialized = false;
     QUuid m_id = {};
 };
 
