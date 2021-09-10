@@ -104,7 +104,7 @@ private:
     CustomWidget *q_ptr = nullptr;
     bool m_initialized = false;
     QUuid m_id = {};
-    WId m_winId = reinterpret_cast<WId>(nullptr);
+    WId m_winId = 0;
     QWindow *m_window = nullptr;
     bool m_autoFillBackground = false;
     QPalette m_palette = {};

@@ -23,6 +23,24 @@
  */
 
 #include "utils.h"
+#include "settings.h"
+#include <QtCore/qdebug.h>
+#include <QtCore/qvariant.h>
+#include <QtCore/quuid.h>
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
+#include <QtCore/qoperatingsystemversion.h>
+#else
+#include <QtCore/qsysinfo.h>
+#endif
+#include <QtGui/qpalette.h>
+#include <QtGui/qicon.h>
+#include <QtGui/qwindow.h>
+#include <QtGui/qguiapplication.h>
+
+static inline void initCoreResource()
+{
+    Q_INIT_RESOURCE(core);
+}
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
@@ -102,13 +120,12 @@ quint32 Utils::getPreferredSystemMetric(const QUuid &id, const SystemMetric metr
     if (id.isNull()) {
         return 0;
     }
-    const auto winId = qvariant_cast<WId>(Core::Settings::get(id, QString::fromUtf8(Constants::kWinIdFlag), 0));
+    const auto winId = qvariant_cast<WId>(getWindowProperty(id, WindowProperty::Id));
     Q_ASSERT(winId);
     if (!winId) {
         return 0;
     }
-    const quint32 dpi = (dpiScale ? getDPIForWindow(winId) : USER_DEFAULT_SCREEN_DPI);
-    const qreal dpr = (dpiScale ? (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI)) : 1.0);
+    const qreal dpr = (dpiScale ? getWindowProperty(id, WindowProperty::DevicePixelRatio).toReal() : 1.0);
     quint32 userValue = 0;
     switch (metric) {
     case SystemMetric::ResizeBorderThickness: {
@@ -131,72 +148,265 @@ quint32 Utils::getPreferredSystemMetric(const QUuid &id, const SystemMetric metr
     }
 }
 
-bool Utils::isWindowResizable(const QUuid &id)
+QVariant Utils::getWindowProperty(const QUuid &id, const WindowProperty prop)
 {
     Q_ASSERT(!id.isNull());
     if (id.isNull()) {
-        return false;
+        return {};
     }
-    Qt::WindowFlags flags = {};
-    QSize min = {}, max = {};
-    // Size policy?
-    const auto widget = qvariant_cast<QObject *>(Core::Settings::get(id, QString::fromUtf8(Constants::kWidgetHandleFlag), 0));
-    if (widget && widget->isWidgetType()) {
-        flags = qvariant_cast<Qt::WindowFlags>(widget->property("windowFlags"));
-        min = widget->property("minimumSize").toSize();
-        max = widget->property("maximumSize").toSize();
-    } else {
-        const auto window = qvariant_cast<QObject *>(Core::Settings::get(id, QString::fromUtf8(Constants::kWindowHandleFlag), 0));
-        if (window && window->isWindowType()) {
-            flags = qvariant_cast<Qt::WindowFlags>(window->property("flags"));
-            min = QSize(window->property("minimumWidth").toInt(), window->property("minimumHeight").toInt());
-            max = QSize(window->property("maximumWidth").toInt(), window->property("maximumHeight").toInt());
+    const auto widget = qvariant_cast<const QObject *>(Core::Settings::get(id, QString::fromUtf8(Constants::kWidgetHandleFlag), 0));
+    const auto window = qvariant_cast<const QObject *>(Core::Settings::get(id, QString::fromUtf8(Constants::kWindowHandleFlag), 0));
+    const bool isWidget = (widget && widget->isWidgetType());
+    const bool isWindow = (window && window->isWindowType());
+    if (!isWidget && !isWindow) {
+        qWarning() << "";
+        return {};
+    }
+    const QObject *object = (isWidget ? widget : window);
+    switch (prop) {
+    case WindowProperty::ObjectName: {
+        return object->objectName();
+    }
+    case WindowProperty::Id: {
+        return Core::Settings::get(id, QString::fromUtf8(Constants::kWinIdFlag), 0);
+    }
+    case WindowProperty::X: {
+        return object->property("x");
+    }
+    case WindowProperty::Y: {
+        return object->property("y");
+    }
+    case WindowProperty::Position: {
+        if (isWidget) {
+            return object->property("pos");
         } else {
-            return true;
+            const int x = getWindowProperty(id, WindowProperty::X).toInt();
+            const int y = getWindowProperty(id, WindowProperty::Y).toInt();
+            return QPoint(x, y);
         }
     }
-    if (flags & Qt::MSWindowsFixedSizeDialogHint) {
-        return false;
+    case WindowProperty::Width: {
+        return object->property("width");
     }
-    if (!min.isEmpty() && !max.isEmpty() && (min == max)) {
-        return false;
+    case WindowProperty::Height: {
+        return object->property("height");
     }
-    return Core::Settings::get(id, QString::fromUtf8(Constants::kWindowResizableFlag), true).toBool();
-}
-
-QColor Utils::getFrameBorderColor(const QUuid &id)
-{
-    Q_ASSERT(!id.isNull());
-    if (id.isNull()) {
-        return Qt::black;
+    case WindowProperty::MinimumWidth: {
+        return object->property("minimumWidth");
     }
-    bool active = true;
-    const auto widget = qvariant_cast<QObject *>(Core::Settings::get(id, QString::fromUtf8(Constants::kWidgetHandleFlag), 0));
-    if (widget && widget->isWidgetType()) {
-        active = (widget->property("focus").toBool() || widget->property("isActiveWindow").toBool());
-    } else {
-        const auto window = qvariant_cast<QObject *>(Core::Settings::get(id, QString::fromUtf8(Constants::kWindowHandleFlag), 0));
-        if (window && window->isWindowType()) {
-            active = window->property("active").toBool();
+    case WindowProperty::MaximumWidth: {
+        return object->property("maximumWidth");
+    }
+    case WindowProperty::MinimumHeight: {
+        return object->property("minimumHeight");
+    }
+    case WindowProperty::MaximumHeight: {
+        return object->property("maximumHeight");
+    }
+    case WindowProperty::Size: {
+        if (isWidget) {
+            return object->property("size");
         } else {
-            return Qt::black;
+            const int width = getWindowProperty(id, WindowProperty::Width).toInt();
+            const int height = getWindowProperty(id, WindowProperty::Height).toInt();
+            return QSize(width, height);
         }
     }
-    if (active) {
-        const ColorizationArea area = getColorizationArea();
-        if ((area == ColorizationArea::TitleBar_WindowBorder) || (area == ColorizationArea::All)) {
-            const auto borderColor = qvariant_cast<QColor>(Core::Settings::get(id, QString::fromUtf8(Constants::kFrameBorderColorFlag), QVariant::fromValue(Qt::black)));
-            if (borderColor.isValid()) {
-                return borderColor;
+    case WindowProperty::MinimumSize: {
+        if (isWidget) {
+            return object->property("minimumSize");
+        } else {
+            const int minimumWidth = getWindowProperty(id, WindowProperty::MinimumWidth).toInt();
+            const int minimumHeight = getWindowProperty(id, WindowProperty::MinimumHeight).toInt();
+            return QSize(minimumWidth, minimumHeight);
+        }
+    }
+    case WindowProperty::MaximumSize: {
+        if (isWidget) {
+            return object->property("maximumSize");
+        } else {
+            const int maximumWidth = getWindowProperty(id, WindowProperty::MaximumWidth).toInt();
+            const int maximumHeight = getWindowProperty(id, WindowProperty::MaximumHeight).toInt();
+            return QSize(maximumWidth, maximumHeight);
+        }
+    }
+    case WindowProperty::Geometry: {
+        if (isWidget) {
+            return object->property("geometry");
+        } else {
+            const QPoint position = getWindowProperty(id, WindowProperty::Position).toPoint();
+            const QSize size = getWindowProperty(id, WindowProperty::Size).toSize();
+            return QRect(position, size);
+        }
+    }
+    case WindowProperty::State: {
+        if (isWidget) {
+            const bool minimized = object->property("minimized").toBool();
+            const bool maximized = object->property("maximized").toBool();
+            const bool fullScreened = object->property("fullScreen").toBool();
+            if (minimized) {
+                return Qt::WindowMinimized;
+            } else if (maximized) {
+                return Qt::WindowMaximized;
+            } else if (fullScreened) {
+                return Qt::WindowFullScreen;
             } else {
-                return getColorizationColor();
+                return Qt::WindowNoState;
             }
         } else {
-            return Qt::black;
+            const auto visibility = qvariant_cast<QWindow::Visibility>(object->property("visibility"));
+            switch (visibility) {
+            case QWindow::Windowed: {
+                return Qt::WindowNoState;
+            }
+            case QWindow::Minimized: {
+                return Qt::WindowMinimized;
+            }
+            case QWindow::Maximized: {
+                return Qt::WindowMaximized;
+            }
+            case QWindow::FullScreen: {
+                return Qt::WindowFullScreen;
+            }
+            default:
+                break;
+            }
+            return Qt::WindowNoState;
         }
-    } else {
-        return Qt::darkGray;
     }
+    case WindowProperty::Flags: {
+        return (isWidget ? object->property("windowFlags") : object->property("flags"));
+    }
+    case WindowProperty::Active: {
+        return (isWidget ? object->property("isActiveWindow") : object->property("active"));
+    }
+    case WindowProperty::Icon: {
+        const auto userIcon = qvariant_cast<QIcon>(Core::Settings::get(id, QString::fromUtf8(Constants::kTitleBarIconFlag), {}));
+        if (userIcon.isNull()) {
+            QIcon icon = {};
+            if (isWidget) {
+                icon = qvariant_cast<QIcon>(object->property("windowIcon"));
+            }
+            if (icon.isNull()) {
+                icon = QGuiApplication::windowIcon();
+            }
+            if (icon.isNull()) {
+                initCoreResource();
+                icon = QIcon(QStringLiteral(":/assets/common/qt-logo.svg"));
+            }
+            Q_ASSERT(!icon.isNull());
+            if (icon.isNull()) {
+                return {};
+            }
+            return icon;
+        } else {
+            return userIcon;
+        }
+    }
+    case WindowProperty::Title: {
+        return (isWidget ? object->property("windowTitle") : object->property("title"));
+    }
+    case WindowProperty::DotsPerInch: {
+        const auto winId = qvariant_cast<WId>(getWindowProperty(id, WindowProperty::Id));
+        return (winId ? getDPI(winId) : Constants::kDefaultScreenDPI);
+    }
+    case WindowProperty::DevicePixelRatio: {
+        const quint32 dpi = getWindowProperty(id, WindowProperty::DotsPerInch).toUInt();
+        return qreal(static_cast<qreal>(dpi) / static_cast<qreal>(Constants::kDefaultScreenDPI));
+    }
+    case WindowProperty::FrameBorderThickness: {
+        return getPreferredSystemMetric(id, SystemMetric::FrameBorderThickness, false);
+    }
+    case WindowProperty::FrameBorderColor: {
+        const bool active = getWindowProperty(id, WindowProperty::Active).toBool();
+        if (active) {
+            const ColorizationArea area = getColorizationArea();
+            if ((area == ColorizationArea::TitleBar_WindowBorder) || (area == ColorizationArea::All)) {
+                const auto borderColor = qvariant_cast<QColor>(Core::Settings::get(id, QString::fromUtf8(Constants::kFrameBorderColorFlag), {}));
+                if (borderColor.isValid()) {
+                    return borderColor;
+                } else {
+                    return getColorizationColor();
+                }
+            } else {
+                return QColor(Qt::black);
+            }
+        } else {
+            return QColor(Qt::darkGray);
+        }
+    }
+    case WindowProperty::FrameBorderVisibility: {
+        return Core::Settings::get(id, QString::fromUtf8(Constants::kFrameBorderVisibleFlag), true);
+    }
+    case WindowProperty::Resizable: {
+        const auto flags = qvariant_cast<Qt::WindowFlags>(getWindowProperty(id, WindowProperty::Flags));
+        if (flags & Qt::MSWindowsFixedSizeDialogHint) {
+            return false;
+        }
+        const QSize minimumSize = getWindowProperty(id, WindowProperty::MinimumSize).toSize();
+        const QSize maximumSize = getWindowProperty(id, WindowProperty::MaximumSize).toSize();
+        if (!minimumSize.isEmpty() && !maximumSize.isEmpty() && (minimumSize == maximumSize)) {
+            return false;
+        }
+        return Core::Settings::get(id, QString::fromUtf8(Constants::kWindowResizableFlag), true);
+    }
+    case WindowProperty::Font: {
+        return {};
+    }
+    case WindowProperty::Palette: {
+        return {};
+    }
+    case WindowProperty::TitleBarHeight: {
+        return getPreferredSystemMetric(id, SystemMetric::TitleBarHeight, false);
+    }
+    case WindowProperty::TitleBarVisibility: {
+        return Core::Settings::get(id, QString::fromUtf8(Constants::kTitleBarVisibleFlag), true);
+    }
+    case WindowProperty::TitleTextAlignment: {
+        return Core::Settings::get(id, QString::fromUtf8(Constants::kTitleBarTextAlignmentFlag), {});
+    }
+    case WindowProperty::CaptionHeight: {
+        return getPreferredSystemMetric(id, SystemMetric::CaptionHeight, false);
+    }
+    case WindowProperty::ResizeBorderThickness: {
+        return getPreferredSystemMetric(id, SystemMetric::ResizeBorderThickness, false);
+    }
+    }
+    return {};
+}
+
+QIcon Utils::getSystemButtonIcon(const SystemButtonType type, const SystemTheme theme)
+{
+    QString path = QStringLiteral(":/assets/");
+    switch (theme) {
+    case SystemTheme::Light: {
+        path.append(QStringLiteral("light"));
+    } break;
+    case SystemTheme::Dark: {
+        path.append(QStringLiteral("dark"));
+    } break;
+    case SystemTheme::HighContrast: {
+        path.append(QStringLiteral("highcontrast"));
+    } break;
+    }
+    path.append(u'/');
+    switch (type) {
+    case SystemButtonType::Minimize: {
+        path.append(QStringLiteral("minimize"));
+    } break;
+    case SystemButtonType::Maximize: {
+        path.append(QStringLiteral("maximize"));
+    } break;
+    case SystemButtonType::Restore: {
+        path.append(QStringLiteral("restore"));
+    } break;
+    case SystemButtonType::Close: {
+        path.append(QStringLiteral("close"));
+    } break;
+    }
+    path.append(QStringLiteral(".svg"));
+    initCoreResource();
+    return QIcon(path);
 }
 
 CUSTOMWINDOW_END_NAMESPACE

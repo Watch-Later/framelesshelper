@@ -71,7 +71,7 @@ void CustomWidgetPrivate::initialize()
     m_palette = q->palette();
 
     QVariantHash options = {};
-    options.insert(QString::fromUtf8(Constants::kWidgetHandleFlag), QVariant::fromValue(static_cast<QWidget *>(q)));
+    options.insert(QString::fromUtf8(Constants::kWidgetHandleFlag), QVariant::fromValue(q));
     options.insert(QString::fromUtf8(Constants::kWindowHandleFlag), QVariant::fromValue(m_window));
     options.insert(QString::fromUtf8(Constants::kWinIdFlag), m_winId);
     m_id = Core::Settings::create(options);
@@ -84,7 +84,9 @@ void CustomWidgetPrivate::uninitialize()
     if (!m_initialized) {
         return;
     }
-    // todo: remove settings cache
+    if (!Core::Settings::destroy(m_id)) {
+        //
+    }
     m_id = QUuid();
     m_initialized = false;
 }
@@ -102,7 +104,7 @@ void CustomWidgetPrivate::setCustomFrameEnabled(const bool value)
     if (!m_initialized) {
         return;
     }
-    if (!Core::Settings::set(m_id, QString::fromUtf8(Constants::kCustomWindowFrameFlag), true)) {
+    if (!Core::Settings::set(m_id, QString::fromUtf8(Constants::kCustomWindowFrameFlag), value)) {
         qWarning() << "";
         return;
     }
@@ -122,7 +124,7 @@ quint32 CustomWidgetPrivate::resizeBorderThickness() const
     if (!m_initialized) {
         return 0;
     }
-    return Utils::getPreferredSystemMetric(m_id, m_winId, SystemMetric::ResizeBorderThickness, false);
+    return Utils::getWindowProperty(m_id, WindowProperty::ResizeBorderThickness).toUInt();
 }
 
 void CustomWidgetPrivate::setResizeBorderThickness(const quint32 value)
@@ -144,7 +146,7 @@ quint32 CustomWidgetPrivate::captionHeight() const
     if (!m_initialized) {
         return 0;
     }
-    return Utils::getPreferredSystemMetric(m_id, m_winId, SystemMetric::CaptionHeight, false);
+    return Utils::getWindowProperty(m_id, WindowProperty::CaptionHeight).toUInt();
 }
 
 void CustomWidgetPrivate::setCaptionHeight(const quint32 value)
@@ -166,7 +168,7 @@ quint32 CustomWidgetPrivate::titleBarHeight() const
     if (!m_initialized) {
         return 0;
     }
-    return Utils::getPreferredSystemMetric(m_id, m_winId, SystemMetric::TitleBarHeight, false);
+    return Utils::getWindowProperty(m_id, WindowProperty::TitleBarHeight).toUInt();
 }
 
 void CustomWidgetPrivate::setTitleBarHeight(const quint32 value)
@@ -188,16 +190,7 @@ bool CustomWidgetPrivate::resizable() const
     if (!m_initialized) {
         return true;
     }
-    Q_Q(const CustomWidget);
-    if (q->windowFlags() & Qt::MSWindowsFixedSizeDialogHint) {
-        return true;
-    }
-    const QSize min = q->minimumSize();
-    const QSize max = q->maximumSize();
-    if (!min.isEmpty() && !max.isEmpty() && (min == max)) {
-        return true;
-    }
-    return Core::Settings::get(m_id, QString::fromUtf8(Constants::kWindowResizableFlag), true).toBool();
+    return Utils::getWindowProperty(m_id, WindowProperty::Resizable).toBool();
 }
 
 bool CustomWidgetPrivate::autoDetectHighContrast() const
@@ -273,7 +266,7 @@ bool CustomWidgetPrivate::frameBorderVisible() const
     if (!m_initialized) {
         return true;
     }
-    return Core::Settings::get(m_id, QString::fromUtf8(Constants::kFrameBorderVisibleFlag), true).toBool();
+    return Utils::getWindowProperty(m_id, WindowProperty::FrameBorderVisibility).toBool();
 }
 
 void CustomWidgetPrivate::setFrameBorderVisible(const bool value)
@@ -295,8 +288,7 @@ quint32 CustomWidgetPrivate::frameBorderThickness() const
     if (!m_initialized) {
         return 0;
     }
-    const quint32 userValue = Core::Settings::get(m_id, QString::fromUtf8(Constants::kFrameBorderThicknessFlag), 0).toUInt();
-    return ((userValue > 0) ? userValue : Utils::getWindowVisibleFrameBorderThickness(m_winId));
+    return Utils::getWindowProperty(m_id, WindowProperty::FrameBorderThickness).toUInt();
 }
 
 void CustomWidgetPrivate::setFrameBorderThickness(const quint32 value)
@@ -315,51 +307,134 @@ void CustomWidgetPrivate::setFrameBorderThickness(const quint32 value)
 
 QColor CustomWidgetPrivate::frameBorderColor() const
 {
-
+    if (!m_initialized) {
+        return Qt::black;
+    }
+    return qvariant_cast<QColor>(Utils::getWindowProperty(m_id, WindowProperty::FrameBorderColor));
 }
 
 void CustomWidgetPrivate::setFrameBorderColor(const QColor &value)
 {
+    if (!m_initialized) {
+        return;
+    }
+    if (Core::Settings::set(m_id, QString::fromUtf8(Constants::kFrameBorderColorFlag), value)) {
+        Q_Q(CustomWidget);
+        q->update();
+        Q_EMIT q->frameBorderColorChanged(value);
+    } else {
+        qWarning() << "";
+    }
 }
 
 bool CustomWidgetPrivate::titleBarVisible() const
 {
+    if (!m_initialized) {
+        return true;
+    }
+    return Utils::getWindowProperty(m_id, WindowProperty::TitleBarVisibility).toBool();
 }
 
 void CustomWidgetPrivate::setTitleBarVisible(const bool value)
 {
+    if (!m_initialized) {
+        return;
+    }
+    if (Core::Settings::set(m_id, QString::fromUtf8(Constants::kTitleBarVisibleFlag), value)) {
+        Q_Q(CustomWidget);
+        q->update();
+        Q_EMIT q->titleBarVisibleChanged(value);
+    } else {
+        qWarning() << "";
+    }
 }
 
 bool CustomWidgetPrivate::titleBarIconVisible() const
 {
+    if (!m_initialized) {
+        return true;
+    }
+    return Core::Settings::get(m_id, QString::fromUtf8(Constants::kTitleBarIconVisibleFlag), true).toBool();
 }
 
 void CustomWidgetPrivate::setTitleBarIconVisible(const bool value)
 {
+    if (!m_initialized) {
+        return;
+    }
+    if (Core::Settings::set(m_id, QString::fromUtf8(Constants::kTitleBarIconVisibleFlag), value)) {
+        Q_Q(CustomWidget);
+        q->update();
+        Q_EMIT q->titleBarIconVisibleChanged(value);
+    } else {
+        qWarning() << "";
+    }
 }
 
 QIcon CustomWidgetPrivate::titleBarIcon() const
 {
+    if (!m_initialized) {
+        return {};
+    }
+    return qvariant_cast<QIcon>(Utils::getWindowProperty(m_id, WindowProperty::Icon));
 }
 
 void CustomWidgetPrivate::setTitleBarIcon(const QIcon &value)
 {
+    if (!m_initialized) {
+        return;
+    }
+    if (Core::Settings::set(m_id, QString::fromUtf8(Constants::kTitleBarIconFlag), value)) {
+        Q_Q(CustomWidget);
+        q->update();
+        Q_EMIT q->titleBarIconChanged(value);
+    } else {
+        qWarning() << "";
+    }
 }
 
 Qt::Alignment CustomWidgetPrivate::titleBarTextAlignment() const
 {
+    if (!m_initialized) {
+        return {Qt::AlignLeft | Qt::AlignVCenter};
+    }
+    return qvariant_cast<Qt::Alignment>(Core::Settings::get(m_id, QString::fromUtf8(Constants::kTitleBarTextAlignmentFlag), {}));
 }
 
 void CustomWidgetPrivate::setTitleBarTextAlignment(const Qt::Alignment value)
 {
+    if (!m_initialized) {
+        return;
+    }
+    if (Core::Settings::set(m_id, QString::fromUtf8(Constants::kTitleBarTextAlignmentFlag), QVariant::fromValue(value))) {
+        Q_Q(CustomWidget);
+        q->update();
+        Q_EMIT q->titleBarTextAlignmentChanged(value);
+    } else {
+        qWarning() << "";
+    }
 }
 
 QColor CustomWidgetPrivate::titleBarBackgroundColor() const
 {
+    if (!m_initialized) {
+        return Qt::white;
+    }
+    return qvariant_cast<QColor>(Core::Settings::get(m_id, QString::fromUtf8(Constants::kTitleBarBackgroundColorFlag), {}));
 }
 
 void CustomWidgetPrivate::setTitleBarBackgroundColor(const QColor &value)
 {
+    if (!m_initialized) {
+        return;
+    }
+    if (Core::Settings::set(m_id, QString::fromUtf8(Constants::kTitleBarBackgroundColorFlag), value)) {
+        Q_Q(CustomWidget);
+        q->update();
+        Q_EMIT q->titleBarBackgroundColorChanged(value);
+    } else {
+        qWarning() << "";
+    }
 }
 
 void CustomWidgetPrivate::emitAllSignals()
@@ -384,7 +459,7 @@ void CustomWidgetPrivate::emitAllSignals()
 
 void CustomWidgetPrivate::updateContentsMargins()
 {
-    const int margin = ((Utils::isMaximized(m_winId) || Utils::isFullScreened(m_winId)) ? 0 : Utils::getWindowVisibleFrameBorderThickness(m_winId));
+    const int margin = ((Utils::isMaximized(m_winId) || Utils::isFullScreened(m_winId)) ? 0 : Utils::getWindowProperty(m_id, WindowProperty::FrameBorderThickness).toUInt());
     Q_Q(CustomWidget);
     q->setContentsMargins(margin, margin, margin, margin);
 }

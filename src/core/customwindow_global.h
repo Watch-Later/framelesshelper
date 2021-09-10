@@ -88,6 +88,8 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
 namespace Constants
 {
 
+[[maybe_unused]] constexpr quint32 kDefaultScreenDPI = 96;
+
 [[maybe_unused]] constexpr char kCustomWindowFrameFlag[] = "__CUSTOMWINDOW_CUSTOM_WINDOW_FRAME";
 [[maybe_unused]] constexpr char kResizeBorderThicknessFlag[] = "__CUSTOMWINDOW_RESIZE_BORDER_THICKNESS";
 [[maybe_unused]] constexpr char kCaptionHeightFlag[] = "__CUSTOMWINDOW_CAPTION_HEIGHT";

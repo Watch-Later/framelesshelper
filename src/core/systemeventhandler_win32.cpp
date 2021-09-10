@@ -70,12 +70,14 @@ void FramelessHelperWin::removeFramelessWindow(QWindow *window)
 }
 #endif
 
-[[nodiscard]] static inline POINT __ExtractMousePosFromLParam(const LPARAM lParam)
+[[nodiscard]] extern QString __GetSystemErrorMessage(const QString &function, const HRESULT hr);
+
+[[nodiscard]] CUSTOMWINDOW_API inline POINT __ExtractMousePosFromLParam(const LPARAM lParam)
 {
     return {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
 }
 
-[[nodiscard]] static inline bool __EnableNonClientAreaRendering(const HWND hWnd)
+[[nodiscard]] CUSTOMWINDOW_API inline bool __EnableNonClientAreaRendering(const HWND hWnd)
 {
     Q_ASSERT(hWnd);
     if (!hWnd) {
@@ -102,7 +104,7 @@ void FramelessHelperWin::removeFramelessWindow(QWindow *window)
         const DWMNCRENDERINGPOLICY ncrp = DWMNCRP_ENABLED;
         const HRESULT hr = DwmSetWindowAttributeFunc(hWnd, DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
         if (FAILED(hr)) {
-            Utils::getSystemErrorMessage(QStringLiteral("DwmSetWindowAttributeFunc"), hr);
+            qWarning() << __GetSystemErrorMessage(QStringLiteral("DwmSetWindowAttributeFunc"), hr);
             return false;
         }
         return true;
@@ -112,7 +114,7 @@ void FramelessHelperWin::removeFramelessWindow(QWindow *window)
     }
 }
 
-[[nodiscard]] static inline bool __UpdateQtInternalFrameMargins(const QUuid &id)
+[[nodiscard]] CUSTOMWINDOW_API inline bool __UpdateQtInternalFrameMargins(const QUuid &id)
 {
     const QVariant windowVar = Core::Settings::get(id, QString::fromUtf8(Constants::kWindowHandleFlag), {});
     if (windowVar.isValid()) {

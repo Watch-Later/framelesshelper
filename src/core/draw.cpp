@@ -27,11 +27,6 @@
 #include <QtCore/quuid.h>
 #include <QtGui/qpainter.h>
 
-static inline void initCoreResource()
-{
-    Q_INIT_RESOURCE(core);
-}
-
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
 bool Core::Draw::customWindowFrame(const QUuid &id, QPainter *painter)
@@ -41,7 +36,6 @@ bool Core::Draw::customWindowFrame(const QUuid &id, QPainter *painter)
     if (id.isNull() || !painter) {
         return false;
     }
-    initCoreResource();
     return true;
 }
 
@@ -52,7 +46,6 @@ bool Core::Draw::customTitleBar(const QUuid &id, QPainter *painter)
     if (id.isNull() || !painter) {
         return false;
     }
-    initCoreResource();
     return true;
 }
 

@@ -24,9 +24,7 @@
 
 #include "utils.h"
 #include "core_windows.h"
-#include "settings.h"
 #include <QtCore/qdebug.h>
-#include <QtCore/quuid.h>
 #include <QtCore/qsettings.h>
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
 #include <QtCore/qoperatingsystemversion.h>
@@ -40,13 +38,12 @@
 #else
 #include <QtGui/qpa/qplatformwindow_p.h>
 #endif
-#include <QtGui/qpalette.h>
 
 Q_DECLARE_METATYPE(QMargins)
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-[[nodiscard]] static inline bool __IsWin10RS1OrGreater()
+[[nodiscard]] CUSTOMWINDOW_API inline bool __IsWin10RS1OrGreater()
 {
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
     static const bool result = (QOperatingSystemVersion::current() >= QOperatingSystemVersion(QOperatingSystemVersion::Windows, 10, 0, 14393));
@@ -56,7 +53,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     return result;
 }
 
-[[nodiscard]] static inline bool __IsWin1019H1OrGreater()
+[[nodiscard]] CUSTOMWINDOW_API inline bool __IsWin1019H1OrGreater()
 {
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
     static const bool result = (QOperatingSystemVersion::current() >= QOperatingSystemVersion(QOperatingSystemVersion::Windows, 10, 0, 18362));
@@ -66,7 +63,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     return result;
 }
 
-[[nodiscard]] static inline QString __GetSystemErrorMessage(const QString &function, const HRESULT hr)
+[[nodiscard]] CUSTOMWINDOW_API inline QString __GetSystemErrorMessage(const QString &function, const HRESULT hr)
 {
     Q_ASSERT(!function.isEmpty());
     if (function.isEmpty()) {
@@ -87,7 +84,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     return message;
 }
 
-[[nodiscard]] static inline quint32 __GetSystemMetricsForDpi(const int nIndex, const quint32 dpi)
+[[nodiscard]] CUSTOMWINDOW_API inline quint32 __GetSystemMetricsForDpi(const int nIndex, const quint32 dpi)
 {
     Q_ASSERT(dpi != 0);
     if (dpi == 0) {
@@ -126,7 +123,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
             qWarning() << Utils::getSystemErrorMessage(QStringLiteral("GetSystemMetrics"));
             return 0;
         }
-        const DPIAwareness dpiAwareness = Utils::getDPIAwarenessForWindow(reinterpret_cast<WId>(nullptr));
+        const DPIAwareness dpiAwareness = Utils::getDPIAwareness(reinterpret_cast<WId>(nullptr));
         if (dpiAwareness == DPIAwareness::Invalid) {
             qWarning() << "Failed to retrieve the DPI awareness for the current process.";
             return 0;
@@ -135,7 +132,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
         if (dpiAwareness == DPIAwareness::Unaware) {
             return qRound(value * dpr);
         } else {
-            const quint32 currentDPI = Utils::getDPIForWindow(reinterpret_cast<WId>(nullptr));
+            const quint32 currentDPI = Utils::getDPI(reinterpret_cast<WId>(nullptr));
             if (currentDPI == 0) {
                 qWarning() << "Failed to retrieve the DPI for the current process.";
                 return 0;
@@ -150,7 +147,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     }
 }
 
-[[nodiscard]] static inline bool __ShouldAppsUseDarkMode()
+[[nodiscard]] CUSTOMWINDOW_API inline bool __ShouldAppsUseDarkMode()
 {
     if (!__IsWin10RS1OrGreater()) {
         return false;
@@ -194,7 +191,7 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     }
 }
 
-[[nodiscard]] static inline bool __IsHighContrastModeEnabled()
+[[nodiscard]] CUSTOMWINDOW_API inline bool __IsHighContrastModeEnabled()
 {
     HIGHCONTRASTW hc;
     SecureZeroMemory(&hc, sizeof(hc));
@@ -252,7 +249,7 @@ quint32 Utils::getSystemMetric(const WId winId, const SystemMetric metric, const
     if (!winId) {
         return 0;
     }
-    const quint32 dpi = (dpiScale ? getDPIForWindow(winId) : USER_DEFAULT_SCREEN_DPI);
+    const quint32 dpi = (dpiScale ? getDPI(winId) : USER_DEFAULT_SCREEN_DPI);
     const qreal dpr = (dpiScale ? (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI)) : 1.0);
     switch (metric) {
     case SystemMetric::ResizeBorderThickness: {
@@ -289,7 +286,7 @@ quint32 Utils::getSystemMetric(const WId winId, const SystemMetric metric, const
         return ((isMaximized(winId) || isFullScreened(winId)) ? captionHeight : (captionHeight + resizeBorderThickness));
     }
     case SystemMetric::FrameBorderThickness: {
-        const quint32 borderThickness = getWindowVisibleFrameBorderThickness(winId);
+        const quint32 borderThickness = getFrameBorderThickness(winId);
         return (dpiScale ? qRound(static_cast<qreal>(borderThickness) * dpr) : borderThickness);
     }
     }
@@ -339,7 +336,7 @@ bool Utils::updateFrameMargins(const WId winId, const bool reset)
         }
     }
     if (DwmExtendFrameIntoClientAreaFunc) {
-        const int margin = (reset ? 0 : getWindowVisibleFrameBorderThickness(winId));
+        const int margin = (reset ? 0 : getFrameBorderThickness(winId));
         const MARGINS margins = {margin, margin, margin, margin};
         const HRESULT hr = DwmExtendFrameIntoClientAreaFunc(reinterpret_cast<HWND>(winId), &margins);
         if (FAILED(hr)) {
@@ -418,26 +415,27 @@ QColor Utils::getColorizationColor()
         }
     }
     if (DwmGetColorizationColorFunc) {
-        COLORREF color = RGB(0, 0, 0);
+        DWORD color = 0;
         BOOL opaque = FALSE;
         const HRESULT hr = DwmGetColorizationColorFunc(&color, &opaque);
-        if (FAILED(hr)) {
+        if (SUCCEEDED(hr)) {
+            return QColor::fromRgba(color);
+        } else {
             qWarning() << __GetSystemErrorMessage(QStringLiteral("DwmGetColorizationColor"), hr);
-            const QSettings registry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
-            bool ok = false;
-            color = registry.value(QStringLiteral("ColorizationColor"), 0).toUInt(&ok);
-            if (!ok || (color == 0)) {
-                color = RGB(128, 128, 128); // Dark gray
-            }
         }
-        return QColor::fromRgba(color);
     } else {
         qWarning() << "DwmGetColorizationColor() is not available.";
-        return Qt::darkGray;
     }
+    const QSettings registry(QString::fromUtf8(Constants::kDwmRegistryKey), QSettings::NativeFormat);
+    bool ok = false;
+    const DWORD value = registry.value(QStringLiteral("ColorizationColor"), 0).toUInt(&ok);
+    if (ok && (value != 0)) {
+        return QColor::fromRgba(value);
+    }
+    return Qt::darkGray;
 }
 
-quint32 Utils::getWindowVisibleFrameBorderThickness(const WId winId)
+quint32 Utils::getFrameBorderThickness(const WId winId)
 {
     Q_ASSERT(winId);
     if (!winId) {
@@ -523,7 +521,7 @@ bool Utils::isThemeChanged(const void *data)
 }
 #endif
 
-quint32 Utils::getDPIForWindow(const WId winId)
+quint32 Utils::getDPI(const WId winId)
 {
     static bool tried = false;
     using GetDpiForWindowSig = decltype(&::GetDpiForWindow);
@@ -730,7 +728,7 @@ bool Utils::isWindowNoState(const WId winId)
     return (wp.showCmd == SW_NORMAL);
 }
 
-DPIAwareness Utils::getDPIAwarenessForWindow(const WId winId)
+DPIAwareness Utils::getDPIAwareness(const WId winId)
 {
     static bool tried = false;
     using GetWindowDpiAwarenessContextSig = decltype(&::GetWindowDpiAwarenessContext);
@@ -915,10 +913,14 @@ bool Utils::setWindowResizable(const WId winId, const bool resizable)
     }
     const auto hWnd = reinterpret_cast<HWND>(winId);
     auto style = static_cast<DWORD>(GetWindowLongPtrW(hWnd, GWL_STYLE));
+    constexpr DWORD resizableFlags = WS_THICKFRAME;
+    constexpr DWORD fixedSizeFlags = (WS_DLGFRAME | WS_POPUP);
     if (resizable) {
-        //
+        style &= ~fixedSizeFlags;
+        style |= resizableFlags;
     } else {
-        //
+        style &= ~resizableFlags;
+        style |= fixedSizeFlags;
     }
     if (SetWindowLongPtrW(hWnd, GWL_STYLE, static_cast<LONG_PTR>(style)) == 0) {
         qWarning() << getSystemErrorMessage(QStringLiteral("SetWindowLongPtrW"));
