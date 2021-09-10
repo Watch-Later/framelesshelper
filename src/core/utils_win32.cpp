@@ -206,43 +206,6 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
     return (hc.dwFlags & HCF_HIGHCONTRASTON);
 }
 
-bool Utils::isWin8OrGreater()
-{
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
-    static const bool result = (QOperatingSystemVersion::current() >= QOperatingSystemVersion::Windows8);
-#else
-    static const bool result = (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8);
-#endif
-    return result;
-}
-
-bool Utils::isWin8Point1OrGreater()
-{
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
-    static const bool result = (QOperatingSystemVersion::current() >= QOperatingSystemVersion::Windows8_1);
-#else
-    static const bool result = (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8_1);
-#endif
-    return result;
-}
-
-bool Utils::isWin10OrGreater()
-{
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
-    static const bool result = (QOperatingSystemVersion::current() >= QOperatingSystemVersion::Windows10);
-#else
-    static const bool result = (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS10);
-#endif
-    return result;
-}
-
-bool Utils::isWin11OrGreater()
-{
-    // ### TO BE IMPLEMENTED
-    static const bool result = false;
-    return result;
-}
-
 bool Utils::isCompositionEnabled()
 {
     // DWM composition is always enabled and can't be disabled since Windows 8.
@@ -870,23 +833,6 @@ SystemTheme Utils::getSystemTheme()
     }
 }
 
-QPalette Utils::getStandardPalette(const SystemTheme theme)
-{
-    QPalette palette = {};
-    switch (theme) {
-    case SystemTheme::Light: {
-        // ### TO BE IMPLEMENTED
-    } break;
-    case SystemTheme::Dark: {
-        // ### TO BE IMPLEMENTED
-    } break;
-    case SystemTheme::HighContrast: {
-        // ### TO BE IMPLEMENTED
-    } break;
-    }
-    return palette;
-}
-
 bool Utils::displaySystemMenu(const WId winId, const QPoint &pos)
 {
     Q_ASSERT(winId);
@@ -961,51 +907,25 @@ bool Utils::displaySystemMenu(const WId winId, const QPoint &pos)
     return true;
 }
 
-quint32 Utils::getPreferredSystemMetric(const QUuid &id, const SystemMetric metric, const bool dpiScale)
-{
-    Q_ASSERT(!id.isNull());
-    if (id.isNull()) {
-        return 0;
-    }
-    const auto winId = qvariant_cast<WId>(Core::Settings::get(id, QString::fromUtf8(Constants::kWinIdFlag), 0));
-    Q_ASSERT(winId);
-    if (!winId) {
-        return 0;
-    }
-    const quint32 dpi = (dpiScale ? getDPIForWindow(winId) : USER_DEFAULT_SCREEN_DPI);
-    const qreal dpr = (dpiScale ? (static_cast<qreal>(dpi) / static_cast<qreal>(USER_DEFAULT_SCREEN_DPI)) : 1.0);
-    quint32 userValue = 0;
-    switch (metric) {
-    case SystemMetric::ResizeBorderThickness: {
-        userValue = Core::Settings::get(id, QString::fromUtf8(Constants::kResizeBorderThicknessFlag), 0).toUInt();
-    }
-    case SystemMetric::CaptionHeight: {
-        userValue = Core::Settings::get(id, QString::fromUtf8(Constants::kCaptionHeightFlag), 0).toUInt();
-    }
-    case SystemMetric::TitleBarHeight: {
-        userValue = Core::Settings::get(id, QString::fromUtf8(Constants::kTitleBarHeightFlag), 0).toUInt();
-    }
-    case SystemMetric::FrameBorderThickness: {
-        userValue = Core::Settings::get(id, QString::fromUtf8(Constants::kFrameBorderThicknessFlag), 0).toUInt();
-    }
-    }
-    if (userValue > 0) {
-        return (dpiScale ? qRound(static_cast<qreal>(userValue) * dpr) : userValue);
-    } else {
-        return getSystemMetric(winId, metric, dpiScale);
-    }
-}
-
-bool Utils::isWindowResizable(const QUuid &id)
-{
-}
-
 bool Utils::setWindowResizable(const WId winId, const bool resizable)
 {
-}
-
-QColor Utils::getFrameBorderColor(const QUuid &id)
-{
+    Q_ASSERT(winId);
+    if (!winId) {
+        return false;
+    }
+    const auto hWnd = reinterpret_cast<HWND>(winId);
+    auto style = static_cast<DWORD>(GetWindowLongPtrW(hWnd, GWL_STYLE));
+    if (resizable) {
+        //
+    } else {
+        //
+    }
+    if (SetWindowLongPtrW(hWnd, GWL_STYLE, static_cast<LONG_PTR>(style)) == 0) {
+        qWarning() << getSystemErrorMessage(QStringLiteral("SetWindowLongPtrW"));
+        return false;
+    }
+    // inform qt
+    return true;
 }
 
 CUSTOMWINDOW_END_NAMESPACE

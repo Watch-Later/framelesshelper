@@ -33,41 +33,62 @@ CUSTOMWINDOW_BEGIN_NAMESPACE
 struct SettingsData
 {
     QMutex mutex = {};
-    QHash<QUuid, QVariantHash> optionList = {};
+    QHash<QUuid, QVariantHash *> optionList = {};
 };
 
 Q_GLOBAL_STATIC(SettingsData, globalData)
 
 QUuid Core::Settings::create(const QVariantHash &initialValue)
 {
-    QVariantHash options = {};
+    const auto options = new QVariantHash;
     if (initialValue.isEmpty()) {
-        options.insert(QString::fromUtf8(Constants::kCustomWindowFrameFlag), false); // bool
-        options.insert(QString::fromUtf8(Constants::kResizeBorderThicknessFlag), 0); // quint32
-        options.insert(QString::fromUtf8(Constants::kCaptionHeightFlag), 0); // quint32
-        options.insert(QString::fromUtf8(Constants::kTitleBarHeightFlag), 0); // quint32
-        options.insert(QString::fromUtf8(Constants::kHitTestVisibleObjectsFlag), {}); // QObjectList
-        options.insert(QString::fromUtf8(Constants::kWindowResizableFlag), true); // bool
-        options.insert(QString::fromUtf8(Constants::kAutoDetectHighContrastFlag), true); // bool
-        options.insert(QString::fromUtf8(Constants::kAutoDetectColorSchemeFlag), true); // bool
-        options.insert(QString::fromUtf8(Constants::kFrameBorderVisibleFlag), true); // bool
-        options.insert(QString::fromUtf8(Constants::kFrameBorderThicknessFlag), 0); // quint32
-        options.insert(QString::fromUtf8(Constants::kFrameBorderColorFlag), {}); // QColor
-        options.insert(QString::fromUtf8(Constants::kTitleBarVisibleFlag), true); // bool
-        options.insert(QString::fromUtf8(Constants::kTitleBarIconVisibleFlag), true); // bool
-        options.insert(QString::fromUtf8(Constants::kTitleBarIconFlag), {}); // QIcon
-        options.insert(QString::fromUtf8(Constants::kTitleBarTextAlignmentFlag), {}); // Qt::Alignment
-        options.insert(QString::fromUtf8(Constants::kTitleBarBackgroundColorFlag), {}); // QColor
-        options.insert(QString::fromUtf8(Constants::kWidgetHandleFlag), {}); // QWidget*
-        options.insert(QString::fromUtf8(Constants::kWindowHandleFlag), {}); // QWindow* or QQuickWindow*
-        options.insert(QString::fromUtf8(Constants::kWinIdFlag), {}); // WId
+        options->insert(QString::fromUtf8(Constants::kCustomWindowFrameFlag), false); // bool
+        options->insert(QString::fromUtf8(Constants::kResizeBorderThicknessFlag), 0); // quint32
+        options->insert(QString::fromUtf8(Constants::kCaptionHeightFlag), 0); // quint32
+        options->insert(QString::fromUtf8(Constants::kTitleBarHeightFlag), 0); // quint32
+        options->insert(QString::fromUtf8(Constants::kHitTestVisibleObjectsFlag), {}); // QObjectList
+        options->insert(QString::fromUtf8(Constants::kWindowResizableFlag), true); // bool
+        options->insert(QString::fromUtf8(Constants::kAutoDetectHighContrastFlag), true); // bool
+        options->insert(QString::fromUtf8(Constants::kAutoDetectColorSchemeFlag), true); // bool
+        options->insert(QString::fromUtf8(Constants::kFrameBorderVisibleFlag), true); // bool
+        options->insert(QString::fromUtf8(Constants::kFrameBorderThicknessFlag), 0); // quint32
+        options->insert(QString::fromUtf8(Constants::kFrameBorderColorFlag), {}); // QColor
+        options->insert(QString::fromUtf8(Constants::kTitleBarVisibleFlag), true); // bool
+        options->insert(QString::fromUtf8(Constants::kTitleBarIconVisibleFlag), true); // bool
+        options->insert(QString::fromUtf8(Constants::kTitleBarIconFlag), {}); // QIcon
+        options->insert(QString::fromUtf8(Constants::kTitleBarTextAlignmentFlag), {}); // Qt::Alignment
+        options->insert(QString::fromUtf8(Constants::kTitleBarBackgroundColorFlag), {}); // QColor
+        options->insert(QString::fromUtf8(Constants::kWidgetHandleFlag), {}); // QWidget*
+        options->insert(QString::fromUtf8(Constants::kWindowHandleFlag), {}); // QWindow* or QQuickWindow*
+        options->insert(QString::fromUtf8(Constants::kWinIdFlag), {}); // WId
     } else {
-        options = initialValue;
+        *options = initialValue;
     }
     const QUuid id = QUuid::createUuid();
     QMutexLocker locker(&globalData()->mutex);
     globalData()->optionList.insert(id, options);
     return id;
+}
+
+bool Core::Settings::destroy(const QUuid &id)
+{
+    Q_ASSERT(!id.isNull());
+    if (id.isNull()) {
+        return false;
+    }
+    QMutexLocker locker(&globalData()->mutex);
+    if (globalData()->optionList.isEmpty()) {
+        return false;
+    }
+    if (!globalData()->optionList.contains(id)) {
+        return false;
+    }
+    const auto options = globalData()->optionList.value(id);
+    if (options) {
+        delete options;
+    }
+    globalData()->optionList.remove(id);
+    return true;
 }
 
 QVariant Core::Settings::get(const QUuid &id, const QString &name, const QVariant &defaultValue)
@@ -84,11 +105,14 @@ QVariant Core::Settings::get(const QUuid &id, const QString &name, const QVarian
     if (!globalData()->optionList.contains(id)) {
         return defaultValue;
     }
-    const QVariantHash options = globalData()->optionList.value(id);
-    if (options.isEmpty()) {
+    const auto options = globalData()->optionList.value(id);
+    if (!options) {
         return defaultValue;
     }
-    return (options.contains(name) ? options.value(name) : defaultValue);
+    if (options->isEmpty()) {
+        return defaultValue;
+    }
+    return (options->contains(name) ? options->value(name) : defaultValue);
 }
 
 bool Core::Settings::set(const QUuid &id, const QString &name, const QVariant &value)
@@ -106,12 +130,11 @@ bool Core::Settings::set(const QUuid &id, const QString &name, const QVariant &v
     if (!globalData()->optionList.contains(id)) {
         return false;
     }
-    QVariantHash options = globalData()->optionList.take(id);
-    if (options.contains(name)) {
-        options.remove(name);
+    const auto options = globalData()->optionList.value(id);
+    if (!options) {
+        return false;
     }
-    options.insert(name, value);
-    globalData()->optionList.insert(id, options);
+    options->insert(name, value);
     return true;
 }
 

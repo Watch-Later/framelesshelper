@@ -37,6 +37,7 @@ namespace Core::Settings
 {
 
 [[nodiscard]] CUSTOMWINDOW_API QUuid create(const QVariantHash &initialValue);
+[[nodiscard]] CUSTOMWINDOW_API bool destroy(const QUuid &id);
 [[nodiscard]] CUSTOMWINDOW_API QVariant get(const QUuid &id, const QString &name, const QVariant &defaultValue);
 [[nodiscard]] CUSTOMWINDOW_API bool set(const QUuid &id, const QString &name, const QVariant &value);
 

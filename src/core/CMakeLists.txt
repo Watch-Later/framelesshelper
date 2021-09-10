@@ -10,6 +10,7 @@ set(SOURCES
     draw.h
     draw.cpp
     utils.h
+    utils.cpp
 )
 
 if(WIN32)
