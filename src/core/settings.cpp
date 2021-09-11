@@ -22,50 +22,71 @@
  * SOFTWARE.
  */
 
-#include "settings.h"
+#include "core.h"
 #include <QtCore/qdebug.h>
 #include <QtCore/qmutex.h>
 #include <QtCore/qvariant.h>
 #include <QtCore/quuid.h>
+#include <QtGui/qpalette.h>
+#include <QtGui/qicon.h>
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
+struct CustomPalette
+{
+    QPalette light = {};
+    QPalette dark = {};
+    QPalette highContrast = {};
+};
+
+struct CustomSystemButton
+{
+    QIcon light = {};
+    QIcon dark = {};
+    QIcon highContrast = {};
+};
+
 struct SettingsData
 {
-    QMutex mutex = {};
     QHash<QUuid, QVariantHash *> optionList = {};
+    CustomPalette customPalette = {};
+    CustomSystemButton customMinimizeButton = {};
+    CustomSystemButton customMaximizeButton = {};
+    CustomSystemButton customRestoreButton = {};
+    CustomSystemButton customCloseButton = {};
 };
 
 Q_GLOBAL_STATIC(SettingsData, globalData)
+
+static QMutex mutex = {};
 
 QUuid Core::Settings::create(const QVariantHash &initialValue)
 {
     const auto options = new QVariantHash;
     if (initialValue.isEmpty()) {
-        options->insert(QString::fromUtf8(Constants::kCustomWindowFrameFlag), false); // bool
-        options->insert(QString::fromUtf8(Constants::kResizeBorderThicknessFlag), 0); // quint32
-        options->insert(QString::fromUtf8(Constants::kCaptionHeightFlag), 0); // quint32
-        options->insert(QString::fromUtf8(Constants::kTitleBarHeightFlag), 0); // quint32
-        options->insert(QString::fromUtf8(Constants::kHitTestVisibleObjectsFlag), {}); // QObjectList
-        options->insert(QString::fromUtf8(Constants::kWindowResizableFlag), true); // bool
-        options->insert(QString::fromUtf8(Constants::kAutoDetectHighContrastFlag), true); // bool
-        options->insert(QString::fromUtf8(Constants::kAutoDetectColorSchemeFlag), true); // bool
-        options->insert(QString::fromUtf8(Constants::kFrameBorderVisibleFlag), true); // bool
-        options->insert(QString::fromUtf8(Constants::kFrameBorderThicknessFlag), 0); // quint32
-        options->insert(QString::fromUtf8(Constants::kFrameBorderColorFlag), {}); // QColor
-        options->insert(QString::fromUtf8(Constants::kTitleBarVisibleFlag), true); // bool
-        options->insert(QString::fromUtf8(Constants::kTitleBarIconVisibleFlag), true); // bool
-        options->insert(QString::fromUtf8(Constants::kTitleBarIconFlag), {}); // QIcon
-        options->insert(QString::fromUtf8(Constants::kTitleBarTextAlignmentFlag), {}); // Qt::Alignment
-        options->insert(QString::fromUtf8(Constants::kTitleBarBackgroundColorFlag), {}); // QColor
-        options->insert(QString::fromUtf8(Constants::kWidgetHandleFlag), {}); // QWidget*
-        options->insert(QString::fromUtf8(Constants::kWindowHandleFlag), {}); // QWindow* or QQuickWindow*
-        options->insert(QString::fromUtf8(Constants::kWinIdFlag), {}); // WId
+        options->insert(Constants::kCustomWindowFrameFlag, false); // bool
+        options->insert(Constants::kResizeBorderThicknessFlag, 0); // quint32
+        options->insert(Constants::kCaptionHeightFlag, 0); // quint32
+        options->insert(Constants::kTitleBarHeightFlag, 0); // quint32
+        options->insert(Constants::kHitTestVisibleObjectsFlag, {}); // QObjectList
+        options->insert(Constants::kWindowResizableFlag, true); // bool
+        options->insert(Constants::kAutoDetectHighContrastFlag, true); // bool
+        options->insert(Constants::kAutoDetectColorSchemeFlag, true); // bool
+        options->insert(Constants::kFrameBorderVisibleFlag, true); // bool
+        options->insert(Constants::kFrameBorderThicknessFlag, 0); // quint32
+        options->insert(Constants::kFrameBorderColorFlag, {}); // QColor
+        options->insert(Constants::kTitleBarVisibleFlag, true); // bool
+        options->insert(Constants::kTitleBarIconVisibleFlag, true); // bool
+        options->insert(Constants::kTitleBarIconFlag, {}); // QIcon
+        options->insert(Constants::kTitleBarTextAlignmentFlag, QVariant::fromValue(Qt::Alignment(Qt::AlignLeft | Qt::AlignVCenter))); // Qt::Alignment
+        options->insert(Constants::kTitleBarBackgroundColorFlag, {}); // QColor
+        options->insert(Constants::kWidgetHandleFlag, {}); // QWidget*
+        options->insert(Constants::kWindowHandleFlag, {}); // QWindow* or QQuickWindow*
     } else {
         *options = initialValue;
     }
     const QUuid id = QUuid::createUuid();
-    QMutexLocker locker(&globalData()->mutex);
+    QMutexLocker locker(&mutex);
     globalData()->optionList.insert(id, options);
     return id;
 }
@@ -76,7 +97,7 @@ bool Core::Settings::destroy(const QUuid &id)
     if (id.isNull()) {
         return false;
     }
-    QMutexLocker locker(&globalData()->mutex);
+    QMutexLocker locker(&mutex);
     if (globalData()->optionList.isEmpty()) {
         return false;
     }
@@ -98,7 +119,7 @@ QVariant Core::Settings::get(const QUuid &id, const QString &name, const QVarian
     if (id.isNull() || name.isEmpty()) {
         return defaultValue;
     }
-    QMutexLocker locker(&globalData()->mutex);
+    QMutexLocker locker(&mutex);
     if (globalData()->optionList.isEmpty()) {
         return defaultValue;
     }
@@ -123,7 +144,7 @@ bool Core::Settings::set(const QUuid &id, const QString &name, const QVariant &v
     if (id.isNull() || name.isEmpty() || !value.isValid()) {
         return false;
     }
-    QMutexLocker locker(&globalData()->mutex);
+    QMutexLocker locker(&mutex);
     if (globalData()->optionList.isEmpty()) {
         return false;
     }

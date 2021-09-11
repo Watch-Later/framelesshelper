@@ -26,6 +26,13 @@
 
 #include "customwindow_global.h"
 
+QT_BEGIN_NAMESPACE
+QT_FORWARD_DECLARE_CLASS(QUuid)
+QT_FORWARD_DECLARE_CLASS(QIcon)
+QT_FORWARD_DECLARE_CLASS(QPalette)
+QT_FORWARD_DECLARE_CLASS(QPainter)
+QT_END_NAMESPACE
+
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
 namespace Core
@@ -48,8 +55,8 @@ namespace Window
 {
 [[nodiscard]] CUSTOMWINDOW_API QVariant getProperty(const QUuid &id, const WindowProperty prop);
 [[nodiscard]] CUSTOMWINDOW_API bool setProperty(const QUuid &id, const WindowProperty prop, const QVariant &value);
-[[nodiscard]] CUSTOMWINDOW_API QIcon getSystemButtonIcon(const SystemButtonType type, const SystemTheme theme);
-[[nodiscard]] CUSTOMWINDOW_API bool setSystemButtonIcon(const SystemButtonType type, const SystemTheme theme, const QIcon &icon);
+[[nodiscard]] CUSTOMWINDOW_API QIcon getSystemButtonIcon(const SystemButton type, const SystemTheme theme);
+[[nodiscard]] CUSTOMWINDOW_API bool setSystemButtonIcon(const SystemButton type, const SystemTheme theme, const QIcon &icon);
 [[nodiscard]] CUSTOMWINDOW_API QPalette getStandardPalette(const SystemTheme theme);
 [[nodiscard]] CUSTOMWINDOW_API bool setStandardPalette(const SystemTheme theme, const QPalette &palette);
 [[nodiscard]] CUSTOMWINDOW_API quint32 getPreferredSystemMetric(const QUuid &id, const SystemMetric metric, const bool dpiScale);

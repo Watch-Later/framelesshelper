@@ -27,14 +27,9 @@
 #include "customwindow_global.h"
 #include <QtGui/qwindowdefs.h>
 
-QT_BEGIN_NAMESPACE
-QT_FORWARD_DECLARE_CLASS(QUuid)
-QT_FORWARD_DECLARE_CLASS(QIcon)
-QT_END_NAMESPACE
-
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-namespace Utils
+namespace Core::Utils
 {
 
 [[nodiscard]] CUSTOMWINDOW_API bool isWin8OrGreater();
@@ -60,6 +55,6 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API bool displaySystemMenu(const WId winId, const QPoint &pos);
 [[nodiscard]] CUSTOMWINDOW_API bool setWindowResizable(const WId winId, const bool resizable);
 
-} // namespace Utils
+} // namespace Core::Utils
 
 CUSTOMWINDOW_END_NAMESPACE

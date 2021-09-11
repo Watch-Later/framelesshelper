@@ -32,7 +32,7 @@
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-bool Utils::isWin8OrGreater()
+bool Core::Utils::isWin8OrGreater()
 {
 #ifdef Q_OS_WINDOWS
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
@@ -46,7 +46,7 @@ bool Utils::isWin8OrGreater()
 #endif
 }
 
-bool Utils::isWin8Point1OrGreater()
+bool Core::Utils::isWin8Point1OrGreater()
 {
 #ifdef Q_OS_WINDOWS
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
@@ -60,7 +60,7 @@ bool Utils::isWin8Point1OrGreater()
 #endif
 }
 
-bool Utils::isWin10OrGreater()
+bool Core::Utils::isWin10OrGreater()
 {
 #ifdef Q_OS_WINDOWS
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
@@ -74,7 +74,7 @@ bool Utils::isWin10OrGreater()
 #endif
 }
 
-bool Utils::isWin11OrGreater()
+bool Core::Utils::isWin11OrGreater()
 {
 #ifdef Q_OS_WINDOWS
     // ### TO BE IMPLEMENTED

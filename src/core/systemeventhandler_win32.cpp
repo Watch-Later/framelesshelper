@@ -22,9 +22,8 @@
  * SOFTWARE.
  */
 
-#include "systemeventhandler.h"
+#include "core.h"
 #include "utils.h"
-#include "settings.h"
 #include "core_windows.h"
 #include <QtCore/qdebug.h>
 #include <QtCore/quuid.h>
@@ -93,10 +92,10 @@ void FramelessHelperWin::removeFramelessWindow(QWindow *window)
             if (dll) {
                 DwmSetWindowAttributeFunc = reinterpret_cast<DwmSetWindowAttributeSig>(GetProcAddress(dll, "DwmSetWindowAttribute"));
                 if (!DwmSetWindowAttributeFunc) {
-                    qWarning() << Utils::getSystemErrorMessage(QStringLiteral("GetProcAddress"));
+                    qWarning() << Core::Utils::getSystemErrorMessage(QStringLiteral("GetProcAddress"));
                 }
             } else {
-                qWarning() << Utils::getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
+                qWarning() << Core::Utils::getSystemErrorMessage(QStringLiteral("LoadLibraryExW"));
             }
         }
     }
@@ -116,23 +115,25 @@ void FramelessHelperWin::removeFramelessWindow(QWindow *window)
 
 [[nodiscard]] CUSTOMWINDOW_API inline bool __UpdateQtInternalFrameMargins(const QUuid &id)
 {
-    const QVariant windowVar = Core::Settings::get(id, QString::fromUtf8(Constants::kWindowHandleFlag), {});
-    if (windowVar.isValid()) {
-        const auto window = qvariant_cast<QWindow *>(windowVar);
-        if (window) {
-            return Utils::updateQtInternalFrameMargins(window, true);
-        }
+    Q_ASSERT(!id.isNull());
+    if (id.isNull()) {
+        return false;
     }
-    return false;
+    const auto window = qvariant_cast<QWindow *>(Core::Window::getProperty(id, WindowProperty::WindowHandle));
+    return (window ? Core::Utils::updateQtInternalFrameMargins(window, true) : false);
 }
 
-bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *result)
+bool Core::SystemEvent::handler(const QUuid &id, const void *event, qintptr *result)
 {
     Q_ASSERT(!id.isNull());
     if (id.isNull()) {
         return false;
     }
-    if (!Settings::get(id, QString::fromUtf8(Constants::kCustomWindowFrameFlag), false).toBool()) {
+    if (!Core::Window::getProperty(id, WindowProperty::CustomWindowFrame).toBool()) {
+        return false;
+    }
+    const auto winId = qvariant_cast<WId>(Core::Window::getProperty(id, WindowProperty::Id));
+    if (!winId) {
         return false;
     }
     Q_ASSERT(event);
@@ -151,11 +152,13 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
         // Anyway, we should skip it in this case.
         return false;
     }
-    const HWND hWnd = msg->hwnd;
+    const auto hWnd = reinterpret_cast<HWND>(winId);
+    if (msg->hwnd != hWnd) {
+        return false;
+    }
     const UINT message = msg->message;
     const WPARAM wParam = msg->wParam;
     const LPARAM lParam = msg->lParam;
-    const auto winId = reinterpret_cast<WId>(hWnd);
     switch (message) {
     case WM_NCCALCSIZE: {
         // Windows是根据这个消息的返回值来设置窗口的客户区（窗口中真正显示的内容）
@@ -500,23 +503,25 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
             break;
         }
         const LONG windowWidth = clientRect.right;
-        const quint32 resizeBorderThickness = Utils::getPreferredSystemMetric(id, winId, SystemMetric::ResizeBorderThickness, true);
-        const quint32 titleBarHeight = Utils::getPreferredSystemMetric(id, winId, SystemMetric::TitleBarHeight, true);
+        const quint32 resizeBorderThickness = Core::Window::getPreferredSystemMetric(id, SystemMetric::ResizeBorderThickness, true);
+        const quint32 titleBarHeight = Core::Window::getPreferredSystemMetric(id, SystemMetric::TitleBarHeight, true);
         const bool max = Utils::isMaximized(winId);
         const bool full = Utils::isFullScreened(winId);
+        // ### FIXME
+        const bool hitTestVisible = false;
         bool isTitleBar = false;
         if (max || full) {
             isTitleBar = ((windowPos.y >= 0) && (windowPos.y <= titleBarHeight)
                           && (windowPos.x >= 0) && (windowPos.x <= windowWidth)
-                          /*&& !Utils::isHitTestVisibleInChrome(window)*/);
+                          && !hitTestVisible);
         }
         if (Utils::isWindowNoState(winId)) {
             isTitleBar = ((windowPos.y > resizeBorderThickness) && (windowPos.y <= titleBarHeight)
                           && (windowPos.x > resizeBorderThickness) && (windowPos.x < (windowWidth - resizeBorderThickness))
-                          /*&& !Utils::isHitTestVisibleInChrome(window)*/);
+                          && !hitTestVisible);
         }
         const bool isTop = (windowPos.y <= resizeBorderThickness);
-        *result = [clientRect, isTitleBar, &windowPos, resizeBorderThickness, windowWidth, isTop, max]{
+        *result = [&id, clientRect, isTitleBar, &windowPos, resizeBorderThickness, windowWidth, isTop, max]{
             if (max) {
                 if (isTitleBar) {
                     return HTCAPTION;
@@ -529,9 +534,7 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
             const qreal factor = ((isTop || isBottom) ? 2.0 : 1.0);
             const bool isLeft = (windowPos.x <= qRound(static_cast<qreal>(resizeBorderThickness) * factor));
             const bool isRight = (windowPos.x >= (windowWidth - qRound(static_cast<qreal>(resizeBorderThickness) * factor)));
-            // ### FIXME
-            //const bool resizable = Utils::isWindowFixedSize(window);
-            const bool resizable = true;
+            const bool resizable = Core::Window::getProperty(id, WindowProperty::Resizable).toBool();
             const auto getBorderValue = [resizable](const int value) -> int {
                 return (resizable ? value : HTCLIENT);
             };
@@ -619,8 +622,8 @@ bool Core::systemEventHandler(const QUuid &id, const void *event, qintptr *resul
     case WM_SYSCOMMAND: {
         const WPARAM filteredWParam = (wParam & 0xFFF0);
         if ((filteredWParam == SC_KEYMENU) && (lParam == VK_SPACE)) {
-            const quint32 borderThickness = Utils::getWindowVisibleFrameBorderThickness(winId);
-            const quint32 titleBarHeight = Utils::getPreferredSystemMetric(id, winId, SystemMetric::TitleBarHeight, true);
+            const quint32 borderThickness = Core::Window::getProperty(id, WindowProperty::FrameBorderThickness).toUInt();
+            const quint32 titleBarHeight = Core::Window::getPreferredSystemMetric(id, SystemMetric::TitleBarHeight, true);
             if (Utils::displaySystemMenu(winId, QPoint(borderThickness, titleBarHeight))) {
                 *result = 0;
                 return true;

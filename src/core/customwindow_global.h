@@ -25,6 +25,8 @@
 #pragma once
 
 #include <QtCore/qglobal.h>
+#include <QtCore/qobject.h>
+#include <QtCore/qstring.h>
 
 #ifndef CUSTOMWINDOW_API
 #ifdef CUSTOMWINDOW_STATIC
@@ -92,25 +94,24 @@ namespace Constants
 
 [[maybe_unused]] constexpr quint32 kDefaultScreenDPI = 96;
 
-[[maybe_unused]] constexpr QString kCustomWindowFrameFlag = QStringLiteral("__CUSTOMWINDOW_CUSTOM_WINDOW_FRAME");
-[[maybe_unused]] constexpr QString kResizeBorderThicknessFlag = QStringLiteral("__CUSTOMWINDOW_RESIZE_BORDER_THICKNESS");
-[[maybe_unused]] constexpr QString kCaptionHeightFlag = QStringLiteral("__CUSTOMWINDOW_CAPTION_HEIGHT");
-[[maybe_unused]] constexpr QString kTitleBarHeightFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_HEIGHT");
-[[maybe_unused]] constexpr QString kHitTestVisibleObjectsFlag = QStringLiteral("__CUSTOMWINDOW_HIT_TEST_VISIBLE_OBJECTS");
-[[maybe_unused]] constexpr QString kWindowResizableFlag = QStringLiteral("__CUSTOMWINDOW_WINDOW_RESIZABLE");
-[[maybe_unused]] constexpr QString kAutoDetectHighContrastFlag = QStringLiteral("__CUSTOMWINDOW_AUTO_DETECT_HIGH_CONTRAST");
-[[maybe_unused]] constexpr QString kAutoDetectColorSchemeFlag = QStringLiteral("__CUSTOMWINDOW_AUTO_DETECT_COLOR_SCHEME");
-[[maybe_unused]] constexpr QString kFrameBorderVisibleFlag = QStringLiteral("__CUSTOMWINDOW_FRAME_BORDER_VISIBLE");
-[[maybe_unused]] constexpr QString kFrameBorderThicknessFlag = QStringLiteral("__CUSTOMWINDOW_FRAME_BORDER_THICKNESS");
-[[maybe_unused]] constexpr QString kFrameBorderColorFlag = QStringLiteral("__CUSTOMWINDOW_FRAME_BORDER_COLOR");
-[[maybe_unused]] constexpr QString kTitleBarVisibleFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_VISIBLE");
-[[maybe_unused]] constexpr QString kTitleBarIconVisibleFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_ICON_VISIBLE");
-[[maybe_unused]] constexpr QString kTitleBarIconFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_ICON");
-[[maybe_unused]] constexpr QString kTitleBarTextAlignmentFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_TEXT_ALIGNMENT");
-[[maybe_unused]] constexpr QString kTitleBarBackgroundColorFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_BACKGROUND_COLOR");
-[[maybe_unused]] constexpr QString kWidgetHandleFlag = QStringLiteral("__CUSTOMWINDOW_WIDGET_HANDLE");
-[[maybe_unused]] constexpr QString kWindowHandleFlag = QStringLiteral("__CUSTOMWINDOW_WINDOW_HANDLE");
-[[maybe_unused]] constexpr QString kWinIdFlag = QStringLiteral("__CUSTOMWINDOW_WINID");
+[[maybe_unused]] const QString kCustomWindowFrameFlag = QStringLiteral("__CUSTOMWINDOW_CUSTOM_WINDOW_FRAME");
+[[maybe_unused]] const QString kResizeBorderThicknessFlag = QStringLiteral("__CUSTOMWINDOW_RESIZE_BORDER_THICKNESS");
+[[maybe_unused]] const QString kCaptionHeightFlag = QStringLiteral("__CUSTOMWINDOW_CAPTION_HEIGHT");
+[[maybe_unused]] const QString kTitleBarHeightFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_HEIGHT");
+[[maybe_unused]] const QString kHitTestVisibleObjectsFlag = QStringLiteral("__CUSTOMWINDOW_HIT_TEST_VISIBLE_OBJECTS");
+[[maybe_unused]] const QString kWindowResizableFlag = QStringLiteral("__CUSTOMWINDOW_WINDOW_RESIZABLE");
+[[maybe_unused]] const QString kAutoDetectHighContrastFlag = QStringLiteral("__CUSTOMWINDOW_AUTO_DETECT_HIGH_CONTRAST");
+[[maybe_unused]] const QString kAutoDetectColorSchemeFlag = QStringLiteral("__CUSTOMWINDOW_AUTO_DETECT_COLOR_SCHEME");
+[[maybe_unused]] const QString kFrameBorderVisibleFlag = QStringLiteral("__CUSTOMWINDOW_FRAME_BORDER_VISIBLE");
+[[maybe_unused]] const QString kFrameBorderThicknessFlag = QStringLiteral("__CUSTOMWINDOW_FRAME_BORDER_THICKNESS");
+[[maybe_unused]] const QString kFrameBorderColorFlag = QStringLiteral("__CUSTOMWINDOW_FRAME_BORDER_COLOR");
+[[maybe_unused]] const QString kTitleBarVisibleFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_VISIBLE");
+[[maybe_unused]] const QString kTitleBarIconVisibleFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_ICON_VISIBLE");
+[[maybe_unused]] const QString kTitleBarIconFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_ICON");
+[[maybe_unused]] const QString kTitleBarTextAlignmentFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_TEXT_ALIGNMENT");
+[[maybe_unused]] const QString kTitleBarBackgroundColorFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_BACKGROUND_COLOR");
+[[maybe_unused]] const QString kWidgetHandleFlag = QStringLiteral("__CUSTOMWINDOW_WIDGET_HANDLE");
+[[maybe_unused]] const QString kWindowHandleFlag = QStringLiteral("__CUSTOMWINDOW_WINDOW_HANDLE");
 
 } // namespace Constants
 

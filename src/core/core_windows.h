@@ -131,8 +131,8 @@ namespace Constants
 
 [[maybe_unused]] constexpr quint32 kAutoHideTaskbarThickness = 2; // The thickness of an auto-hide taskbar in pixels
 
-[[maybe_unused]] constexpr char kDwmRegistryKey[] = R"(HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM)";
-[[maybe_unused]] constexpr char kPersonalizeRegistryKey[] = R"(HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize)";
+[[maybe_unused]] const QString kDwmRegistryKey = QStringLiteral(R"(HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM)");
+[[maybe_unused]] const QString kPersonalizeRegistryKey = QStringLiteral(R"(HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize)");
 
 [[maybe_unused]] constexpr quint32 kDefaultResizeBorderThicknessClassic = 4;
 [[maybe_unused]] constexpr quint32 kDefaultResizeBorderThicknessAero = 8;

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "draw.h"
+#include "core.h"
 #include <QtCore/qdebug.h>
 #include <QtCore/quuid.h>
 #include <QtGui/qpainter.h>
