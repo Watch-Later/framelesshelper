@@ -25,22 +25,42 @@
 #pragma once
 
 #include "customwindow_global.h"
-#include <QtCore/qcontainerfwd.h>
-
-QT_BEGIN_NAMESPACE
-QT_FORWARD_DECLARE_CLASS(QUuid)
-QT_END_NAMESPACE
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-namespace Core::Settings
+namespace Core
 {
 
+namespace SystemEvent
+{
+[[nodiscard]] CUSTOMWINDOW_API bool handler(const QUuid &id, const void *event, qintptr *result);
+} // namespace SystemEvent
+
+namespace Settings
+{
 [[nodiscard]] CUSTOMWINDOW_API QUuid create(const QVariantHash &initialValue);
 [[nodiscard]] CUSTOMWINDOW_API bool destroy(const QUuid &id);
 [[nodiscard]] CUSTOMWINDOW_API QVariant get(const QUuid &id, const QString &name, const QVariant &defaultValue);
 [[nodiscard]] CUSTOMWINDOW_API bool set(const QUuid &id, const QString &name, const QVariant &value);
+} // namespace Settings
 
-} // namespace Core::Settings
+namespace Window
+{
+[[nodiscard]] CUSTOMWINDOW_API QVariant getProperty(const QUuid &id, const WindowProperty prop);
+[[nodiscard]] CUSTOMWINDOW_API bool setProperty(const QUuid &id, const WindowProperty prop, const QVariant &value);
+[[nodiscard]] CUSTOMWINDOW_API QIcon getSystemButtonIcon(const SystemButtonType type, const SystemTheme theme);
+[[nodiscard]] CUSTOMWINDOW_API bool setSystemButtonIcon(const SystemButtonType type, const SystemTheme theme, const QIcon &icon);
+[[nodiscard]] CUSTOMWINDOW_API QPalette getStandardPalette(const SystemTheme theme);
+[[nodiscard]] CUSTOMWINDOW_API bool setStandardPalette(const SystemTheme theme, const QPalette &palette);
+[[nodiscard]] CUSTOMWINDOW_API quint32 getPreferredSystemMetric(const QUuid &id, const SystemMetric metric, const bool dpiScale);
+} // namespace Window
+
+namespace Draw
+{
+[[nodiscard]] bool customWindowFrame(const QUuid &id, QPainter *painter);
+[[nodiscard]] bool customTitleBar(const QUuid &id, QPainter *painter);
+} // namespace Draw
+
+} // namespace Core
 
 CUSTOMWINDOW_END_NAMESPACE

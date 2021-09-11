@@ -34,86 +34,6 @@ QT_END_NAMESPACE
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
-enum class SystemMetric : int
-{
-    ResizeBorderThickness = 0,
-    CaptionHeight,
-    TitleBarHeight,
-    FrameBorderThickness
-};
-
-enum class ColorizationArea : int
-{
-    None = 0,
-    StartMenu_TaskBar_ActionCenter,
-    TitleBar_WindowBorder,
-    All
-};
-
-enum class DPIAwareness : int
-{
-    Invalid = -1,
-    Unaware,
-    System,
-    PerMonitor,
-    PerMonitorV2
-};
-
-enum class SystemTheme : int
-{
-    Light = 0,
-    Dark,
-    HighContrast
-};
-
-enum class WindowProperty : int
-{
-    ObjectName = 0,
-    Id,
-    X,
-    Y,
-    Position,
-    Width,
-    Height,
-    MinimumWidth,
-    MaximumWidth,
-    MinimumHeight,
-    MaximumHeight,
-    Size,
-    MinimumSize,
-    MaximumSize,
-    Geometry,
-    State,
-    Flags,
-    Active,
-    Icon,
-    Title,
-    DotsPerInch,
-    DevicePixelRatio,
-    FrameBorderThickness,
-    FrameBorderColor,
-    FrameBorderVisibility,
-    Resizable,
-    Font,
-    Palette,
-    TitleBarHeight,
-    TitleBarVisibility,
-    TitleTextAlignment,
-    CaptionHeight,
-    ResizeBorderThickness,
-    Visibility = State,
-    DPI = DotsPerInch,
-    DPR = DevicePixelRatio
-};
-
-enum class SystemButtonType : int
-{
-    Minimize = 0,
-    Maximize,
-    Restore,
-    Close
-};
-
 namespace Utils
 {
 
@@ -127,22 +47,18 @@ namespace Utils
 [[nodiscard]] CUSTOMWINDOW_API bool updateFrameMargins(const WId winId, const bool reset);
 [[nodiscard]] CUSTOMWINDOW_API bool updateQtInternalFrameMargins(QWindow *window, const bool enable);
 [[nodiscard]] CUSTOMWINDOW_API QString getSystemErrorMessage(const QString &function);
-[[nodiscard]] CUSTOMWINDOW_API quint32 getDPI(const WId winId);
+[[nodiscard]] CUSTOMWINDOW_API quint32 getDotsPerInch(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API bool isMinimized(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API bool isMaximized(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API bool isFullScreened(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API bool isWindowNoState(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API QColor getColorizationColor();
-[[nodiscard]] CUSTOMWINDOW_API quint32 getFrameBorderThickness(const WId winId);
+[[nodiscard]] CUSTOMWINDOW_API quint32 getWindowFrameBorderThickness(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API ColorizationArea getColorizationArea();
 [[nodiscard]] CUSTOMWINDOW_API DPIAwareness getDPIAwareness(const WId winId);
 [[nodiscard]] CUSTOMWINDOW_API SystemTheme getSystemTheme();
-[[nodiscard]] CUSTOMWINDOW_API QPalette getStandardPalette(const SystemTheme theme);
 [[nodiscard]] CUSTOMWINDOW_API bool displaySystemMenu(const WId winId, const QPoint &pos);
-[[nodiscard]] CUSTOMWINDOW_API quint32 getPreferredSystemMetric(const QUuid &id, const SystemMetric metric, const bool dpiScale);
 [[nodiscard]] CUSTOMWINDOW_API bool setWindowResizable(const WId winId, const bool resizable);
-[[nodiscard]] CUSTOMWINDOW_API QVariant getWindowProperty(const QUuid &id, const WindowProperty prop);
-[[nodiscard]] CUSTOMWINDOW_API QIcon getSystemButtonIcon(const SystemButtonType type, const SystemTheme theme);
 
 } // namespace Utils
 

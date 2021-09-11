@@ -85,31 +85,137 @@
 
 CUSTOMWINDOW_BEGIN_NAMESPACE
 
+Q_NAMESPACE_EXPORT(CUSTOMWINDOW_API)
+
 namespace Constants
 {
 
 [[maybe_unused]] constexpr quint32 kDefaultScreenDPI = 96;
 
-[[maybe_unused]] constexpr char kCustomWindowFrameFlag[] = "__CUSTOMWINDOW_CUSTOM_WINDOW_FRAME";
-[[maybe_unused]] constexpr char kResizeBorderThicknessFlag[] = "__CUSTOMWINDOW_RESIZE_BORDER_THICKNESS";
-[[maybe_unused]] constexpr char kCaptionHeightFlag[] = "__CUSTOMWINDOW_CAPTION_HEIGHT";
-[[maybe_unused]] constexpr char kTitleBarHeightFlag[] = "__CUSTOMWINDOW_TITLE_BAR_HEIGHT";
-[[maybe_unused]] constexpr char kHitTestVisibleObjectsFlag[] = "__CUSTOMWINDOW_HIT_TEST_VISIBLE_OBJECTS";
-[[maybe_unused]] constexpr char kWindowResizableFlag[] = "__CUSTOMWINDOW_WINDOW_RESIZABLE";
-[[maybe_unused]] constexpr char kAutoDetectHighContrastFlag[] = "__CUSTOMWINDOW_AUTO_DETECT_HIGH_CONTRAST";
-[[maybe_unused]] constexpr char kAutoDetectColorSchemeFlag[] = "__CUSTOMWINDOW_AUTO_DETECT_COLOR_SCHEME";
-[[maybe_unused]] constexpr char kFrameBorderVisibleFlag[] = "__CUSTOMWINDOW_FRAME_BORDER_VISIBLE";
-[[maybe_unused]] constexpr char kFrameBorderThicknessFlag[] = "__CUSTOMWINDOW_FRAME_BORDER_THICKNESS";
-[[maybe_unused]] constexpr char kFrameBorderColorFlag[] = "__CUSTOMWINDOW_FRAME_BORDER_COLOR";
-[[maybe_unused]] constexpr char kTitleBarVisibleFlag[] = "__CUSTOMWINDOW_TITLE_BAR_VISIBLE";
-[[maybe_unused]] constexpr char kTitleBarIconVisibleFlag[] = "__CUSTOMWINDOW_TITLE_BAR_ICON_VISIBLE";
-[[maybe_unused]] constexpr char kTitleBarIconFlag[] = "__CUSTOMWINDOW_TITLE_BAR_ICON";
-[[maybe_unused]] constexpr char kTitleBarTextAlignmentFlag[] = "__CUSTOMWINDOW_TITLE_BAR_TEXT_ALIGNMENT";
-[[maybe_unused]] constexpr char kTitleBarBackgroundColorFlag[] = "__CUSTOMWINDOW_TITLE_BAR_BACKGROUND_COLOR";
-[[maybe_unused]] constexpr char kWidgetHandleFlag[] = "__CUSTOMWINDOW_WIDGET_HANDLE";
-[[maybe_unused]] constexpr char kWindowHandleFlag[] = "__CUSTOMWINDOW_WINDOW_HANDLE";
-[[maybe_unused]] constexpr char kWinIdFlag[] = "__CUSTOMWINDOW_WINID";
+[[maybe_unused]] constexpr QString kCustomWindowFrameFlag = QStringLiteral("__CUSTOMWINDOW_CUSTOM_WINDOW_FRAME");
+[[maybe_unused]] constexpr QString kResizeBorderThicknessFlag = QStringLiteral("__CUSTOMWINDOW_RESIZE_BORDER_THICKNESS");
+[[maybe_unused]] constexpr QString kCaptionHeightFlag = QStringLiteral("__CUSTOMWINDOW_CAPTION_HEIGHT");
+[[maybe_unused]] constexpr QString kTitleBarHeightFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_HEIGHT");
+[[maybe_unused]] constexpr QString kHitTestVisibleObjectsFlag = QStringLiteral("__CUSTOMWINDOW_HIT_TEST_VISIBLE_OBJECTS");
+[[maybe_unused]] constexpr QString kWindowResizableFlag = QStringLiteral("__CUSTOMWINDOW_WINDOW_RESIZABLE");
+[[maybe_unused]] constexpr QString kAutoDetectHighContrastFlag = QStringLiteral("__CUSTOMWINDOW_AUTO_DETECT_HIGH_CONTRAST");
+[[maybe_unused]] constexpr QString kAutoDetectColorSchemeFlag = QStringLiteral("__CUSTOMWINDOW_AUTO_DETECT_COLOR_SCHEME");
+[[maybe_unused]] constexpr QString kFrameBorderVisibleFlag = QStringLiteral("__CUSTOMWINDOW_FRAME_BORDER_VISIBLE");
+[[maybe_unused]] constexpr QString kFrameBorderThicknessFlag = QStringLiteral("__CUSTOMWINDOW_FRAME_BORDER_THICKNESS");
+[[maybe_unused]] constexpr QString kFrameBorderColorFlag = QStringLiteral("__CUSTOMWINDOW_FRAME_BORDER_COLOR");
+[[maybe_unused]] constexpr QString kTitleBarVisibleFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_VISIBLE");
+[[maybe_unused]] constexpr QString kTitleBarIconVisibleFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_ICON_VISIBLE");
+[[maybe_unused]] constexpr QString kTitleBarIconFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_ICON");
+[[maybe_unused]] constexpr QString kTitleBarTextAlignmentFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_TEXT_ALIGNMENT");
+[[maybe_unused]] constexpr QString kTitleBarBackgroundColorFlag = QStringLiteral("__CUSTOMWINDOW_TITLE_BAR_BACKGROUND_COLOR");
+[[maybe_unused]] constexpr QString kWidgetHandleFlag = QStringLiteral("__CUSTOMWINDOW_WIDGET_HANDLE");
+[[maybe_unused]] constexpr QString kWindowHandleFlag = QStringLiteral("__CUSTOMWINDOW_WINDOW_HANDLE");
+[[maybe_unused]] constexpr QString kWinIdFlag = QStringLiteral("__CUSTOMWINDOW_WINID");
 
 } // namespace Constants
+
+enum class SystemMetric : int
+{
+    ResizeBorderThickness = 0,
+    CaptionHeight,
+    TitleBarHeight,
+    FrameBorderThickness
+};
+Q_ENUM_NS(SystemMetric)
+
+enum class ColorizationArea : int
+{
+    None = 0,
+    StartMenu_TaskBar_ActionCenter,
+    TitleBar_WindowBorder,
+    All
+};
+Q_ENUM_NS(ColorizationArea)
+
+enum class DPIAwareness : int
+{
+    Invalid = -1,
+    Unaware,
+    System,
+    PerMonitor,
+    PerMonitorV2
+};
+Q_ENUM_NS(DPIAwareness)
+
+enum class SystemTheme : int
+{
+    Light = 0,
+    Dark,
+    HighContrast
+};
+Q_ENUM_NS(SystemTheme)
+
+enum class WindowProperty : int
+{
+    Name = 0,
+    Id,
+    X,
+    Y,
+    Position,
+    Width,
+    Height,
+    MinimumWidth,
+    MaximumWidth,
+    MinimumHeight,
+    MaximumHeight,
+    Size,
+    MinimumSize,
+    MaximumSize,
+    Geometry,
+    State,
+    Flags,
+    Active,
+    Icon,
+    Title,
+    DotsPerInch,
+    DevicePixelRatio,
+    FrameBorderThickness,
+    FrameBorderColor,
+    FrameBorderVisibility,
+    Resizable,
+    Font,
+    Palette,
+    TitleBarHeight,
+    TitleBarVisibility,
+    TitleTextAlignment,
+    CaptionHeight,
+    ResizeBorderThickness,
+    IconVisibility,
+    MinimizeButtonAvailability,
+    MinimizeButtonVisibility,
+    MaximizeButtonAvailability,
+    MaximizeButtonVisibility,
+    CloseButtonAvailability,
+    CloseButtonVisibility,
+    MinimizeButtonIcon,
+    MaximizeButtonIcon,
+    RestoreButtonIcon,
+    CloseButtonIcon,
+    HitTestVisibleObjects,
+    AutoDetectHighContrast,
+    AutoDetectColorScheme,
+    WidgetHandle,
+    WindowHandle,
+    StyleSheet,
+    CustomWindowFrame,
+    Visibility = State,
+    DPI = DotsPerInch,
+    DPR = DevicePixelRatio
+};
+Q_ENUM_NS(WindowProperty)
+
+enum class SystemButton : int
+{
+    Minimize = 0,
+    Maximize,
+    Restore,
+    Close
+};
+Q_ENUM_NS(SystemButton)
 
 CUSTOMWINDOW_END_NAMESPACE

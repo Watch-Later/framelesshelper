@@ -4,11 +4,10 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui REQUIRED)
 set(SOURCES
     core.qrc
     customwindow_global.h
-    systemeventhandler.h
-    settings.h
+    core.h
     settings.cpp
-    draw.h
     draw.cpp
+    window.cpp
     utils.h
     utils.cpp
 )
