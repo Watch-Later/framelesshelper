@@ -622,7 +622,7 @@ bool Core::SystemEvent::handler(const QUuid &id, const void *event, qintptr *res
     case WM_SYSCOMMAND: {
         const WPARAM filteredWParam = (wParam & 0xFFF0);
         if ((filteredWParam == SC_KEYMENU) && (lParam == VK_SPACE)) {
-            const quint32 borderThickness = Core::Window::getProperty(id, WindowProperty::FrameBorderThickness).toUInt();
+            const quint32 borderThickness = Core::Window::getPreferredSystemMetric(id, SystemMetric::FrameBorderThickness, true);
             const quint32 titleBarHeight = Core::Window::getPreferredSystemMetric(id, SystemMetric::TitleBarHeight, true);
             if (Utils::displaySystemMenu(winId, QPoint(borderThickness, titleBarHeight))) {
                 *result = 0;
